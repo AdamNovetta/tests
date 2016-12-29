@@ -15,7 +15,7 @@ if (!isset($_SERVER['PHP_AUTH_USER'])) {
     header("WWW-Authenticate: Basic realm=\"Private Area\"");
     header("HTTP/1.0 401 Unauthorized");
     // only reached if authentication fails
-    print "Sorry - you need to lopgin to access this page... please reload and try again\n";
+    print "Sorry - you need to login to access this page... please reload and try again\n";
     exit;
 }
 else {
