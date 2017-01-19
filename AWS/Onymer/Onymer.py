@@ -2,8 +2,8 @@
 '''
    Onynmer - Lambda Function - V 1.0
 --------------------------------------------------------------------------------
-  Copyright 2016 Novetta, Inc.
- P&T Infrastructure or its affiliates. All Rights Reserved.
+Copyright 2016 Novetta, Inc.
+P&T Infrastructure or its affiliates. All Rights Reserved.
 
   This file is distributed on an AS IS BASIS, WITHOUT WARRANTIES OR CONDITIONS
   OF ANY KIND, express or implied.

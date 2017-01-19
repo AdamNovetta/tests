@@ -1,20 +1,27 @@
 #!/usr/bin/env python
-###########################################
-#                                         #
-#   AutoOrc - Lambda Function - V 1.0     #
-#                                         #
-######################################################################################################################
-#  Copyright 2016 Novetta, Inc. P&T Infrastructure or its affiliates. All Rights Reserved.                           #
-#                                                                                                                    #
-#  This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES                                                  #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
-#  and limitations under the License.                                                                                #
-#                                                                                                                    #
-# Support -> PT-INFRASTRUCTURE@novetta.com                                                                           #
-######################################################################################################################
+'''
+   AutoOrc - Lambda Function - V 1.0
+--------------------------------------------------------------------------------
+Copyright 2016 Novetta, Inc.
+P&T Infrastructure or its affiliates. All Rights Reserved.
 
+  This file is distributed on an AS IS BASIS, WITHOUT WARRANTIES OR CONDITIONS
+  OF ANY KIND, express or implied.
 
-# needed stuff
+Support: PT-INFRASTRUCTURE@novetta.com
+--------------------------------------------------------------------------------
+Purpose:
+    Shuts down or starts up instances based on the ec2 instance tags:
+    autoOrc-down and autoOrc-up, and the UTC time value in those tags (ie 13:00)
+
+Usage:
+   - Setup a 1 minute interval cloudwatch event (cron trigger) and create the
+   above tags, specifying times for on/off in 24-hour UTC
+   - Update region and filter_running/filter_stopped, if you want to use other
+   tags to hold the up and down times
+
+'''
+
 import json, boto3, logging, time, datetime
 
 # output logging for INFO
@@ -23,7 +30,6 @@ logger.setLevel(logging.INFO)
 
 # define timer, used to gague shutdown time
 timer = time.strftime("%H:%M")
-
 
 # define the connection, replace region if your instances aren't in this region
 region = 'us-east-1'
