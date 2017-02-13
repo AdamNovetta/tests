@@ -23,7 +23,7 @@
                 "ec2:DeleteTags"
             ],
             "Resource": [
-                "arn:aws:ec2:*:$$$ACCOUNT-ID$$$:volume/*"
+                "*"
             ]
         }
     ]
