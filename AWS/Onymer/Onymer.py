@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 '''
-   Onynmer - Lambda Function - V 1.0
+   Onymer - Lambda Function - V 1.0
 --------------------------------------------------------------------------------
 Copyright 2016 Novetta, Inc.
 P&T Infrastructure or its affiliates. All Rights Reserved.
