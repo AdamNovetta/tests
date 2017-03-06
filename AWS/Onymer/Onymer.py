@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 '''
-   Onymer - Lambda Function - V 1.0
+   Onymer - Lambda Function - V 2.0
 --------------------------------------------------------------------------------
 Copyright 2016 Novetta, Inc.
 P&T Infrastructure or its affiliates. All Rights Reserved.
@@ -31,11 +31,13 @@ UnattachedLabel = "- UNATTACHED - "
 def get_instance_name(ec2id):
     EC2Instance = ec2.Instance(ec2id)
     InstanceName = ''
-    for tags in EC2Instance.tags:
-        if tags["Key"] == 'Name':
-            InstanceName = tags["Value"]
+    if EC2Instance.tags is not None:
+        for tags in EC2Instance.tags:
+            if tags["Key"] == 'Name':
+                InstanceName = tags["Value"]
+    else:
+        InstanceName = "No-Name"
     return InstanceName
-
 def lambda_handler(event, context):
     for volume in ec2.volumes.all():
         if volume.tags is not None:
