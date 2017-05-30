@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 '''
-   AutoOrc - Lambda Function - V 1.0
+   AutoOrc - Lambda Function - V 1.2
 --------------------------------------------------------------------------------
-Copyright 2016 Novetta, Inc.
+Copyright 2017 Novetta, Inc.
 P&T Infrastructure or its affiliates. All Rights Reserved.
 
   This file is distributed on an AS IS BASIS, WITHOUT WARRANTIES OR CONDITIONS
@@ -17,83 +17,58 @@ Purpose:
 Usage:
    - Setup a 1 minute interval cloudwatch event (cron trigger) and create the
    above tags, specifying times for on/off in 24-hour UTC
-   - Update region and filter_running/filter_stopped, if you want to use other
-   tags to hold the up and down times
-
+   - Update region and filter_running.append/filter_stopped.append statements, if
+     you want to use other tags to hold the up and down times
 '''
-
 import json, boto3, logging, time, datetime
-
-# output logging for INFO
+# output logging for INFO, to see full output in cloudwatch, default to warning
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-# define timer, used to gague shutdown time
-timer = time.strftime("%H:%M")
-
+logger.setLevel(logging.WARNING)
+# output spacer
+ls = " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - "
 # define the connection, replace region if your instances aren't in this region
 region = 'us-east-1'
-ec2 = boto3.resource('ec2', region_name=region)
-
-
+ec2 = boto3.resource('ec2', region_name=region) 
 # main function, that lambda 'calls'
 def lambda_handler(event, context):
-    print "[ Current Time: " + timer + " ]"
-
-    # filter for all running EC2 instances with the 'autoOrc-down' tag set to current time
-    # (assumes you've already created the EC2 instance tag, and applied it to intances with a time to stop [in UTC])
-    filter_running = [{
-            'Name': 'tag:autoOrc-down',
-            'Values': [timer]
-        },
-        {
-            'Name': 'instance-state-name',
-            'Values': ['running']
-        }
+    # set variable to figure out what day of the week it is
+    d = datetime.datetime.now()
+    # define timer, used to gague shutdown time
+    timer = time.strftime("%H:%M")
+    print ls
+    print "[ Orc routine start time : " + timer + " ]"
+    # set base filters for running/stopped instances, and matching orc tags    
+    filter_running = [
+        {'Name': 'instance-state-name','Values': ['running']},
+        {'Name': 'tag:autoOrc-down','Values': [timer]}
         ]
-    # filter for all stopped EC2 instances with the 'autoOrc-up' tag set to current time
-    # (assumes you've already created the EC2 instance tag, and applied it to intances with a time to start [in UTC])
-    filter_stopped = [{
-            'Name': 'tag:autoOrc-up',
-            'Values': [timer]
-        },
-        {
-            'Name': 'instance-state-name',
-            'Values': ['stopped']
-        }
+    filter_stopped = [
+        {'Name': 'instance-state-name','Values': ['stopped']},
+        {'Name': 'tag:autoOrc-up','Values': [timer]}
         ]
-
-    # check all instances that match the 'filter_running' filter
-    running_instances = ec2.instances.filter(Filters=filter_running)
-
-    # check all instances that match the 'filter_stopped' filter
-    stopped_instances = ec2.instances.filter(Filters=filter_stopped)
-
-    # all running instance's IDs
-    RunningInstances = [instance.id for instance in running_instances]
-
-    # all stopped instance's IDs
-    StoppedInstances = [instance.id for instance in stopped_instances]
-
-    # only shutdown if there are actually instances that match.
-    if len(RunningInstances) > 0:
+    # collect all running instances and filter for orc down tag
+    orc_instances = ec2.instances.filter(Filters=filter_running)   
+    for instance in orc_instances:
+        name = "no name?"
+        for tag in instance.tags:
+            if 'Name'in tag['Key']:
+                name = tag['Value']
         # Print the instances stopping for logging purposes
-        print "---> Running instances to be shutdown: "
-        print RunningInstances
-        # perform the shutdown
-        shuttingDown = ec2.instances.filter(InstanceIds=RunningInstances).stop()
-        print shuttingDown
-
-    else:
-        print "[  No Instances to shutdown now  ]"
-    # only startup if there are actually instances that match.
-    if len(StoppedInstances) > 0:
-        # Print the instances starting for logging purposes
-        print "---> Stopped instances that will be started: "
-        print StoppedInstances
-        # perform the startup
-        startingUp = ec2.instances.filter(InstanceIds=StoppedInstances).start()
-        print startingUp
-
-    else:
-        print "[  No Instances to start now  ]"
+        print "Shutting down instance: "
+        print(instance.id) + " [ Name : " + name + " ] "
+        instance.stop()
+    # determine all stopped instances and filter for the  orc up tag
+    orc_instances_up = ec2.instances.filter(Filters=filter_stopped) 
+    # check to make sure we're only starting stuff on weekdays  
+    if d.isoweekday() in range(1, 6):
+        for instance in orc_instances_up:
+            name = "no name?"
+            for tag in instance.tags:
+                if 'Name'in tag['Key']:
+                    name = tag['Value']
+            # Print the instances starting for logging purposes
+            print "---> Starting instance: "
+            print(instance.id) + " [ Name : " + name + " ] "
+            instance.start()    
+    print "[ Orc routine finished ]"        
+    print ls
