@@ -2,14 +2,6 @@
 '''
    AutoOrc - Lambda Function - V 1.2
 --------------------------------------------------------------------------------
-Copyright 2017 Novetta, Inc.
-P&T Infrastructure or its affiliates. All Rights Reserved.
-
-  This file is distributed on an AS IS BASIS, WITHOUT WARRANTIES OR CONDITIONS
-  OF ANY KIND, express or implied.
-
-Support: PT-INFRASTRUCTURE@novetta.com
---------------------------------------------------------------------------------
 Purpose:
     Shuts down or starts up instances based on the ec2 instance tags:
     autoOrc-down and autoOrc-up, and the UTC time value in those tags (ie 13:00)
