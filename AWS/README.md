@@ -1,2 +1,2 @@
-# AWS
+# AWS - tests
 ## Scripts used with AWS api or on AWS platforms (i.e. Lambda, AWS CLI, etc)
