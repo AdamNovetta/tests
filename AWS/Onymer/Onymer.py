@@ -2,14 +2,6 @@
 '''
    Onymer - Lambda Function - V 2.0
 --------------------------------------------------------------------------------
-Copyright 2016 Novetta, Inc.
-P&T Infrastructure or its affiliates. All Rights Reserved.
-
-  This file is distributed on an AS IS BASIS, WITHOUT WARRANTIES OR CONDITIONS
-  OF ANY KIND, express or implied.
-
-Support: PT-INFRASTRUCTURE@novetta.com
---------------------------------------------------------------------------------
 Purpose:
     This will rename all EBS volume in the 'region = '
     to: [intance-name-tag]-/mount/point
