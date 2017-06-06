@@ -2,9 +2,9 @@
 --------------------------------------------------------------------------------
 ## Purpose:
 This will rename all EBS volumes, network interfaces, snapshots, and AMIs (owned by the account running the script) in the AWS 'region = ' to:
-- [x] EBS volumes:  **[ instance-name-tag ]-/mount/point**
-- [x] Interfaces: **instance-name-tag**
-- [x] Snapshots: **[ instance-name-tag ]-/mount/point**
+- [x] EBS volumes:  **[ _instance-name-tag_ ]-/_mount_/_point_**
+- [x] Interfaces: **_instance-name-tag_**
+- [x] Snapshots: **[ _instance-name-tag_ ]-/_mount_/_point_**
 - [x] AMIs: __*AMI-Name value*__ (required to make an image, kinda redundant?)
 ###### (Also renames all unattached entities to "- UNATTACHED -previousName" or just "- UNATTACHED -" if no previous name exists)
 #### Usage:
