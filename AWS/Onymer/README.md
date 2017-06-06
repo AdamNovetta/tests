@@ -1,7 +1,7 @@
-##   Onymer - Lambda Function - V 4.0
+#   Onymer - Lambda Function - V 4.0
 --------------------------------------------------------------------------------
-### Purpose:
-    This will rename all EBS volumes, network interfaces, snapshots, and AMIs
+## Purpose:
+    This will rename all EBS volumes, network interfaces, snapshots, and AMIs (owned by the account running the script)
     in the AWS 'region = ' to:
         - EBS volumes:  [ instance-name-tag ]-/mount/point
         - Interfaces: instance-name-tag
