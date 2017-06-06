@@ -18,7 +18,8 @@ UnNamedLabel = "(no name)"
 # Don't touch these unless Amazon changes their output for API calls!
 GenericSnapshot = "Created"
 # ------------------------------------------------------------------------------
-
+# Support Functions
+# ------------------------------------------------------------------------------
 # debug helper, has nothing to do with actual renaming process
 def logging_debug(proc, state):
     logger = logging.getLogger()
@@ -56,7 +57,9 @@ def get_tag_name(TAGS):
     else:
         Name_Tag = UnNamedLabel
     return Name_Tag
-
+# ------------------------------------------------------------------------------
+# Main function
+# ------------------------------------------------------------------------------
 def lambda_handler(event, context):
     # counting objects tracking vars
     counter = 0
