@@ -49,6 +49,7 @@ def get_instance_name(ec2id):
 # Finds the AWS Tag:Name.value in a dict of tags
 def get_tag_name(TAGS):
     # returns the Name|tag:value given an instanceID
+    Name_Tag = ''
     if TAGS is not None:
         for tags in TAGS:
             if tags["Key"] == 'Name':
