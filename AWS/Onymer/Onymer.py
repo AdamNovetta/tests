@@ -5,9 +5,9 @@
 Purpose:
     This will rename all EBS volumes, network interfaces, snapshots, and AMIs
     in the AWS 'region = ' to:
-        - EBS volumes:  [ intance-name-tag ]-/mount/point
+        - EBS volumes:  [ instance-name-tag ]-/mount/point
         - Interfaces: instance-name-tag
-        - Snapshots: [ intance-name-tag ]-/mount/point
+        - Snapshots: [ instance-name-tag ]-/mount/point
         - AMIs: AMI-Name value (required to make an image, kinda redundant?)
     Also renames all unattached entities to "- UNATTACHED -previousName" or just
     - UNATTACHED - if no previous name exists
