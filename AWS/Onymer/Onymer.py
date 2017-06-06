@@ -36,7 +36,6 @@ def name_counter(ThisPass):
 
 # returns the instance Name|tag:value given an instanceID
 def get_instance_name(ec2id):
-
     EC2Instance = ec2.Instance(ec2id)
     InstanceName = ''
     if EC2Instance.tags is not None:
