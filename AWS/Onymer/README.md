@@ -21,7 +21,7 @@ This will rename all EBS volumes, network interfaces, snapshots, and AMIs (owned
             * Timeout : 1 min (should be enough for 1000-1500 checked objects)
             * DQL Resource: None
             * VPC : No VPC (not needed really...)
-            * Enable active tracing : unchecked (also no really needed)
+            * Enable active tracing : unchecked (also not really needed)
             * KMS key : default
 
 ##### Releases:
