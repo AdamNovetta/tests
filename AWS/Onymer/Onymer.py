@@ -58,7 +58,7 @@ def get_tag_name(TAGS):
         Name_Tag = UnNamedLabel
     return Name_Tag
 # ------------------------------------------------------------------------------
-# Main function
+# Main Function
 # ------------------------------------------------------------------------------
 def lambda_handler(event, context):
     # counting objects tracking vars
