@@ -2,11 +2,11 @@
 --------------------------------------------------------------------------------
 ## Purpose:
 This will rename all EBS volumes, network interfaces, snapshots, and AMIs (owned by the account running the script) in the AWS 'region = ' to:
-- [x] EBS volumes:  [ instance-name-tag ]-/mount/point
-- [x] Interfaces: instance-name-tag
-- [x] Snapshots: [ instance-name-tag ]-/mount/point
-- [x] AMIs: AMI-Name value (required to make an image, kinda redundant?)
-###### (Also renames all unattached entities to "- UNATTACHED -previousName" or just - UNATTACHED - if no previous name exists)
+- [x] EBS volumes:  **[ instance-name-tag ]-/mount/point**
+- [x] Interfaces: **instance-name-tag**
+- [x] Snapshots: **[ instance-name-tag ]-/mount/point**
+- [x] AMIs: _*AMI-Name value*_ (required to make an image, kinda redundant?)
+###### (Also renames all unattached entities to "- UNATTACHED -previousName" or just "- UNATTACHED -" if no previous name exists)
 #### Usage:
    - Run manually in Lambda or (recommended) on a triggered cron
    (suggested hourly or sooner)
@@ -30,4 +30,4 @@ This will rename all EBS volumes, network interfaces, snapshots, and AMIs (owned
     v2.0 - Auto-rename all EBS volumes, now includes unattached volumes
     v1.0 - Auto-name all EBS volumes
 
-#######  p.s. - comment out (or uncomment) print lines to alter logging output
+######  p.s. - comment out (or uncomment) print lines to alter logging output
