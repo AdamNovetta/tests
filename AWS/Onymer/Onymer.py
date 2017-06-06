@@ -87,7 +87,6 @@ def lambda_handler(event, context):
                 volume.create_tags(Tags=volume_new_name)
             else:
                 print "----> Unttached volume (" + volume.id + ") named correctly, ('" + VolumeName + "') "
-        print " "
         counter = name_counter(counter)
     logging_debug(" volume rename ", "ending")
     print "[ <!> ____ Processed: " + str(counter) + " volumes _____ <!> ]"
