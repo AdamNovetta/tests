@@ -3,6 +3,15 @@
    Onymer - Lambda Function - V 4.0
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
+Copyright 2017 Novetta, Inc.
+P&T Infrastructure or its affiliates. All Rights Reserved.
+
+  This file is distributed on an AS IS BASIS, WITHOUT WARRANTIES OR CONDITIONS
+  OF ANY KIND, express or implied.
+
+Support: PT-INFRASTRUCTURE@novetta.com
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 Purpose:
     This will rename all EBS volumes, network interfaces, snapshots, and AMIs
     in the AWS 'region = ' to:
@@ -14,7 +23,7 @@ Purpose:
     - UNATTACHED - if no previous name exists
 Usage:
    - Run manually in Lambda or (recommended) on a triggered cron
-   (suggeted hourly or sooner)
+   (suggested hourly or sooner)
    - Update region and UnattachedLabel vars to suit your setup
    - Lambda Configuration:
         > runtime : python 2.7
@@ -26,7 +35,7 @@ Usage:
             > Timeout : 1 min (should be enough for 1000-1500 checked objects)
             > DQL Resource: None
             > VPC : No VPC (not needed really...)
-            > Enable atrive tracing : unchecked (also no really needed)
+            > Enable active tracing : unchecked (also no really needed)
             > KMS key : default
 
 Releases:
