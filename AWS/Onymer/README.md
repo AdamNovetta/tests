@@ -5,7 +5,7 @@ This will rename all EBS volumes, network interfaces, snapshots, and AMIs (owned
 - [x] EBS volumes:  **[ instance-name-tag ]-/mount/point**
 - [x] Interfaces: **instance-name-tag**
 - [x] Snapshots: **[ instance-name-tag ]-/mount/point**
-- [x] AMIs: _*AMI-Name value*_ (required to make an image, kinda redundant?)
+- [x] AMIs: __*AMI-Name value*__ (required to make an image, kinda redundant?)
 ###### (Also renames all unattached entities to "- UNATTACHED -previousName" or just "- UNATTACHED -" if no previous name exists)
 #### Usage:
    - Run manually in Lambda or (recommended) on a triggered cron
