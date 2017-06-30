@@ -4,7 +4,7 @@
 This program makes snapshots of the EBS volumes on a daily/weekly/monthly schedule
 
 
-TODO:
+TODO: Add an IAM policy example/template
 
 #### Usage:
    - Run manually in Lambda or (recommended) on a triggered cron
