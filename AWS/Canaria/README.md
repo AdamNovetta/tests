@@ -4,7 +4,7 @@
 This program alerts an SNS topic to possible insecure configurations. Currently the checks performed are:
 - [x] Public S3 buckets: Any bucket with 'everyone' permissions, any 'all authenticated s3 accounts' is also a warning
 
-TODO:
+TODO: (IAM policy example for Lmabda role)
 
 #### Usage:
    - Run manually in Lambda or (recommended) on a triggered cron
