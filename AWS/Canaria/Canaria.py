@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # tools needed
 import json, boto3, logging, time, datetime
 from pprint import pprint
