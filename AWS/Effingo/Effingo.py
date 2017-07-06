@@ -1,19 +1,16 @@
 #!/usr/bin/env python
-# tools
-import boto3
+# tools needed
+import boto3, calendar, tiime, sys, logging
 from datetime import datetime
-import calendar
-import time
-import sys
-import logging
 # Program meta -----------------------------------------------------------------
 vers = "1.0"
 prog_name = "Effingo"
 #  -----------------------------------------------------------------------------
+# output logging for INFO, to see full output in cloudwatch, default to warning
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
-# List with snapshots to delete
+# List witch snapshots to delete
 deletelist = []
 #run daily, if sat then run weekly, if last day of the month run monthly
 # Setup logging TODO: send to S3!!!!
@@ -32,18 +29,19 @@ ec2_region_name = "us-east-1"
 ec2 = boto3.resource("ec2", region_name=ec2_region_name)
 ec2_client = boto3.client('ec2')
 # ------------------------------------------------------------------------------
-# The volumes tags we're looking for, the default is just DailySnapshot
+# The volumes tags we're looking for to establish the backup intervals
 volume_tags = ['DailySnapshot', 'WeeklySnapshot', 'MonthlySnapshot']
 # ------------------------------------------------------------------------------
+# the Account ID for the AWS account this script is running in
 My_AWS_ID = boto3.client('sts').get_caller_identity().get('Account')
 sns_client = boto3.client('sns')
-# Make sure the topic name below exists in your account
+# Make sure the SNS topic below exists in your account, it enables script emails
 SNS_topic_name = "auto-snapshots"
 sns_arn = "arn:aws:sns:" + ec2_region_name +":" + My_AWS_ID + ":" + SNS_topic_name
 # IAM check_acl_status
 iam_client = boto3.client('iam')
 # ------------------------------------------------------------------------------
-
+# Get the tags of a reouse that's passed to the func
 def get_resource_tags(resources):
     resource_id = resources.id
     resource_tags = {}
@@ -62,6 +60,7 @@ def get_resource_tags(resources):
                 resource_tags[key] = value
     return resource_tags
 
+# Set the tags of the resource from the tags passed to the func
 def set_resource_tags(resource, tags):
     for tag_key, tag_value in tags.iteritems():
         if resource.tags is None:
@@ -79,6 +78,7 @@ def set_resource_tags(resource, tags):
             }
             resource.create_tags(Tags=[{'Key':tag_key, 'Value':tag_value}])
 
+# get the 'Name' tag out of the batch of tags sent
 def get_tag_name(TAGS):
     # returns the Name|tag:value given an instanceID
     Name_Tag = ''
@@ -89,7 +89,7 @@ def get_tag_name(TAGS):
     else:
         Name_Tag = UnNamedLabel
     return Name_Tag
-
+# ------------------------------------------------------------------------------
 # Main function of the script
 def lambda_handler(event, context):
     # Message to return result via SNS
@@ -118,16 +118,16 @@ def lambda_handler(event, context):
     for response in paginator.paginate():
             AccountAliases = response['AccountAliases']
     AccountAliases = str(AccountAliases)
-    # all of the volume_tags are now tasks to be done
+    # all of the volume_tags are now tasks to be done (daily/weekly/monthly)
     tasks = volume_tags
-    # deciding if we're running WeeklySnapshot / MonthlySnapshot too
+    # deciding if we're running WeeklySnapshot / MonthlySnapshot
     # if it's day 5 (sat), we'll run a weekly backup
     if 5 != now:
         tasks.remove('WeeklySnapshot')
     # if it's the last day of the month, run monthly backups for tagged volumes too
     if int(day) != days_in_month:
         tasks.remove('MonthlySnapshot')
-    # run the snapshot task
+    # run the snapshot task(s)
     for task in tasks:
         period = ''
         tag_type = task
@@ -148,7 +148,6 @@ def lambda_handler(event, context):
             try:
                 count_total += 1
                 logging.info(vol)
-                # gets all the tags that match the resource (volume in this case)
                 tags_volume = get_resource_tags(vol)
                 description = '%(period)s_snapshot %(vol_id)s_%(period)s_%(date_suffix)s by Lambda Effingo script at %(date)s' % {
                     'period': period,
@@ -171,7 +170,6 @@ def lambda_handler(event, context):
                 snapshots = vol.snapshots.all()
                 deletelist = []
                 for snap in snapshots:
-                    #print "current snapshot we're looking at is: " + str(snap)
                     sndesc = snap.description
                     if (sndesc.startswith('week_snapshot') and period == 'week'):
                         deletelist.append(snap)
@@ -181,7 +179,6 @@ def lambda_handler(event, context):
                         deletelist.append(snap)
                     else:
                         logging.info('     Skipping, not added to deletelist: ' + sndesc)
-
                 for snap in deletelist:
                     logging.info(snap)
                     logging.info(snap.start_time)
