@@ -16,7 +16,7 @@ OIDS = [My_AWS_ID]
 UnattachedLabel = "- UNATTACHED - "
 # Used as a temp variable to identify things without names
 UnNamedLabel = "(no name)"
-# Don't touch these unless Amazon changes their output for API calls!
+# Don't touch these unless Amazon changes their labeling on marketplace snapshots!
 GenericSnapshot = "Created"
 # ------------------------------------------------------------------------------
 # Support Functions
