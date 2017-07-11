@@ -23,6 +23,6 @@ TODO: Add an IAM policy example/template
             * KMS key : default
 
 ##### Releases:
-    v1.0 - Checks S3 buckets for insecure connections
+    v1.0 - Creates a snapshot based on the EBS volumes tag
 
 ######  p.s. - comment out (or uncomment) print lines to alter logging output
