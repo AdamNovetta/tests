@@ -47,8 +47,11 @@ def bucket_contents(target_bucket):
     output = ''
     available_resources = s3_client.list_objects(Bucket=target_bucket)
     output = "\n[ " + target_bucket + " ]"
-    for item in available_resources['Contents']:
-        output +=  "\n|- " + item['Key']
+    if 'Contents' in available_resources:
+        for item in available_resources['Contents']:
+            output +=  "\n|- " + item['Key']
+    else:
+        output = "(Bucket is currently empty)"
     return output
 # 'Main' function
 def lambda_handler(event, context):
@@ -88,5 +91,5 @@ def lambda_handler(event, context):
         sns_message += bucket_contents(rp)
         sns_message += "\n"
     number_problem_buckets = str(problem_buckets)
-    sns_message +=  "\n [ Total buckets with permissions issues: " + number_problem_buckets + " ]\n"   
+    sns_message +=  "\n [ Total buckets with permissions issues: " + number_problem_buckets + " ]\n"
     sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='Alert! S3 buckets with open permissions')
