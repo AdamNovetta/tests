@@ -8,7 +8,8 @@ TODO: Add an IAM policy example/template
 
 #### Usage:
    - Run manually in Lambda or (recommended) on a triggered cron
-   (suggested hourly or sooner, depending on AWS usage)
+   (suggested daily at one time, since this script assumes you're running this as a daily task)
+
    - Lambda Configuration:
         * runtime : python 2.7
         * handler : lambda_function.lambda_handler
