@@ -72,27 +72,27 @@ def lambda_handler(event, context):
     # --- EBS Volume rename process ---
     ############################################################################
     logging_debug(" volume rename ", "starting")
-    for volume in ec2.volumes.all():
-        VolumeName = get_tag_name(volume.tags)
-        if volume.state == 'in-use':
-            InstanceID = volume.attachments[0]['InstanceId']
-            InstanceMount = volume.attachments[0]['Device']
+    for VOLUME in ec2.volumes.all():
+        VolumeName = get_tag_name(VOLUME.tags)
+        if VOLUME.state == 'in-use':
+            InstanceID = VOLUME.attachments[0]['InstanceId']
+            InstanceMount = VOLUME.attachments[0]['Device']
             InstanceName =  get_instance_name(InstanceID)
             NewVolumeName = "[ " + InstanceName + " ]-" + InstanceMount
             volume_new_name = [{'Key': 'Name','Value': NewVolumeName}]
             if VolumeName != NewVolumeName:
-                print "-- [ Attached volume (" + volume.id + ") re-named: " + NewVolumeName + " ] --"
-                volume.create_tags(Tags=volume_new_name)
+                print "-- [ Attached volume (" + VOLUME.id + ") re-named: " + NewVolumeName + " ] --"
+                VOLUME.create_tags(Tags=volume_new_name)
             else:
-                print "--> Attached volume (" + volume.id + ") named correctly, ('" + VolumeName + "') "
-        if volume.state == 'available':
+                print "--> Attached volume (" + VOLUME.id + ") named correctly, ('" + VolumeName + "') "
+        if VOLUME.state == 'available':
             NewVolumeName = UnattachedLabel + VolumeName
             volume_new_name = [{'Key': 'Name','Value': NewVolumeName}]
             if not VolumeName.startswith('- UNATTACHED -'):
                 print "---- [ Unattached volume re-named: " + NewVolumeName + " ] ----"
-                volume.create_tags(Tags=volume_new_name)
+                VOLUME.create_tags(Tags=volume_new_name)
             else:
-                print "----> Unttached volume (" + volume.id + ") named correctly, ('" + VolumeName + "') "
+                print "----> Unttached volume (" + VOLUME.id + ") named correctly, ('" + VolumeName + "') "
         counter = name_counter(counter)
     logging_debug(" volume rename ", "ending")
     print "[ <!> ____ Processed: " + str(counter) + " volumes _____ <!> ]"
