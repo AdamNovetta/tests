@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # tools needed
 import json, boto3, logging, time, datetime
+################################################################################
 # Program meta -----------------------------------------------------------------
-vers = "4.0"
+vers = "4.1"
 prog_name = "Onymer"
 # AWS assumptions --------------------------------------------------------------
 region = "us-east-1"
@@ -18,6 +19,7 @@ UnattachedLabel = "- UNATTACHED - "
 UnNamedLabel = "(no name)"
 # Don't touch these unless Amazon changes their labeling on marketplace snapshots!
 GenericSnapshot = "Created"
+################################################################################
 # ------------------------------------------------------------------------------
 # Support Functions
 # ------------------------------------------------------------------------------
@@ -58,6 +60,7 @@ def get_tag_name(TAGS):
     else:
         Name_Tag = UnNamedLabel
     return Name_Tag
+################################################################################
 # ------------------------------------------------------------------------------
 # Main Function
 # ------------------------------------------------------------------------------
@@ -65,7 +68,9 @@ def lambda_handler(event, context):
     # counting objects tracking vars
     counter = 0
     total_objects = 0
+    ############################################################################
     # --- EBS Volume rename process ---
+    ############################################################################
     logging_debug(" volume rename ", "starting")
     for volume in ec2.volumes.all():
         VolumeName = get_tag_name(volume.tags)
@@ -91,7 +96,9 @@ def lambda_handler(event, context):
         counter = name_counter(counter)
     logging_debug(" volume rename ", "ending")
     print "[ <!> ____ Processed: " + str(counter) + " volumes _____ <!> ]"
+    ############################################################################
     # --- Interface rename process ---
+    ############################################################################
     logging_debug(" interface rename ", "starting")
     network_interfaces = ec2_client.describe_network_interfaces()
     total_objects = counter
@@ -121,6 +128,7 @@ def lambda_handler(event, context):
         counter = name_counter(counter)
     logging_debug(" interface rename ", "ending")
     print "[ <!> _____ Processed: " + str(counter) + " interfaces _____ <!> ]"
+    ############################################################################
     # --- Snapshot labeling process ---
     ############################################################################
     logging_debug(" snapshot labeling ", "starting")
@@ -163,11 +171,12 @@ def lambda_handler(event, context):
         else:
             print "--> Snapshot: " + SnapshotID + " already has a name: " + SnapshotName
         counter = name_counter(counter)
-    ############################################################################
     logging_debug(" snapshot labeling ", "ending")
     print "[ <!> _____ Processed: " + str(counter) + " snapshots _____ <!> ]"
+    ############################################################################
     # --- My AMI labeling process ---
-    logging_debug(" My AMI labeling ", "starting")
+    ############################################################################
+    logging_debug(" My AMIs labeling ", "starting")
     describe_all_images = ec2_client.describe_images(Owners=OIDS)
     total_objects = total_objects + counter
     counter = 0
@@ -190,7 +199,8 @@ def lambda_handler(event, context):
         else:
             print "--> AMI " + ImageID + "already has a name - " + ImageName
         counter = name_counter(counter)
-    logging_debug(" My AMI labeling ", "ending")
+    logging_debug(" My AMIs labeling ", "ending")
     print "[ <!> _____ Processed: " + str(counter) + " AMIs _____ <!> ]"
+    ############################################################################
     total_objects = total_objects + counter
     print "[ [ ----->>>>> [ [ [ Processed:" + str(total_objects) + " total objects ] ] ] <<<<<----- ] ]"
