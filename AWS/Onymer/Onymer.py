@@ -103,9 +103,9 @@ def lambda_handler(event, context):
     network_interfaces = ec2_client.describe_network_interfaces()
     total_objects = counter
     counter = 0
-    for interface in network_interfaces['NetworkInterfaces']:
+    for INTERFACE in network_interfaces['NetworkInterfaces']:
         attached = ''
-        interfaceID = interface['NetworkInterfaceId']
+        interfaceID = INTERFACE['NetworkInterfaceId']
         named = "[ no attachment status? ]"
         THIS_INTERFACE = ''
         THIS_INTERFACE = ec2.NetworkInterface(interfaceID)
@@ -119,7 +119,7 @@ def lambda_handler(event, context):
                     named = "No-Instance-ID"
             else:
                 try:
-                    named = interface['Description']
+                    named = INTERFACE['Description']
                 except:
                     named = "non-ec2-network-interface"
         if attached == "available":
