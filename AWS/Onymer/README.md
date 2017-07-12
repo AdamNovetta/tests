@@ -25,6 +25,7 @@ This will rename all EBS volumes, network interfaces, snapshots, and AMIs (owned
             * KMS key : default
 
 ##### Releases:
+    v4.1 - Cleaned up the code and added a 'try' to put interfaces descriptions in as the name, when it's not a EC2 interface
     v4.0 - Added auto-name Snapshots and AMIs to this script
     v3.0 - Added Auto-name all EC2 network interfaces to the script
     v2.0 - Auto-rename all EBS volumes, now includes unattached volumes
