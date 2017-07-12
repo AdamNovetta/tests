@@ -1,4 +1,4 @@
-#   Onymer - Lambda Function - V 4.0
+#   Onymer - Lambda Function - V 4.1
 --------------------------------------------------------------------------------
 ## Purpose:
 This will rename all EBS volumes, network interfaces, snapshots, and AMIs (owned by the account running the script) in the AWS 'region = ' to:
@@ -18,7 +18,7 @@ This will rename all EBS volumes, network interfaces, snapshots, and AMIs (owned
         * description : Auto-names all EBS volumes and EC2 Network interfaces
         Advanced Configuration:
             * Memory : 128 MB
-            * Timeout : 1 min (should be enough for 1000-1500 checked objects)
+            * Timeout : 2 min (should be enough for 1000-1500 checked objects)
             * DQL Resource: None
             * VPC : No VPC (not needed really...)
             * Enable active tracing : unchecked (also not really needed)
