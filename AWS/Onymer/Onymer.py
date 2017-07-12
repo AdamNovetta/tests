@@ -24,17 +24,21 @@ GenericSnapshot = "Created"
 # Support Functions
 # ------------------------------------------------------------------------------
 # debug helper, has nothing to do with actual renaming process
-def logging_debug(proc, state):
+def logging_debug(proc, state, count):
     logger = logging.getLogger()
     # set below to DEBUG or other to see more errors in event log/console
     logger.setLevel(logging.WARNING)
     d = ''
     d = datetime.datetime.now()
     print "[ > | - " + prog_name + " - " + vers + " | ---> " + state + proc + " process <--- @ " + str(d) + " < ]"
-
+    if "ending" in state:
+        print "[ <!> ____ Processed: " + str(count) + " objects while running " + proc + " task _____ <!> ]"
 # Iteration counter for naming passes / debugging
-def name_counter(ThisPass):
-    ThisPass += 1
+def name_counter(ThisPass, mode):
+    if "ADD" in mode:
+        ThisPass += 1
+    if "RESET" in mode:
+        ThisPass = 0
     return ThisPass
 
 # returns the instance Name|tag:value given an instanceID
@@ -71,7 +75,7 @@ def lambda_handler(event, context):
     ############################################################################
     # --- EBS Volume rename process ---
     ############################################################################
-    logging_debug(" volume rename ", "starting")
+    logging_debug(" volume rename ", "starting", 0)
     for VOLUME in ec2.volumes.all():
         VolumeName = get_tag_name(VOLUME.tags)
         if VOLUME.state == 'in-use':
@@ -93,16 +97,15 @@ def lambda_handler(event, context):
                 VOLUME.create_tags(Tags=volume_new_name)
             else:
                 print "----> Unttached volume (" + VOLUME.id + ") named correctly, ('" + VolumeName + "') "
-        counter = name_counter(counter)
-    logging_debug(" volume rename ", "ending")
-    print "[ <!> ____ Processed: " + str(counter) + " volumes _____ <!> ]"
+        counter = name_counter(counter, 'ADD')
+    logging_debug(" volume rename ", "ending", counter)
     ############################################################################
     # --- Interface rename process ---
     ############################################################################
-    logging_debug(" interface rename ", "starting")
+    logging_debug(" interface rename ", "starting", 0)
     network_interfaces = ec2_client.describe_network_interfaces()
     total_objects = counter
-    counter = 0
+    counter = name_counter(counter, 'RESET')
     for INTERFACE in network_interfaces['NetworkInterfaces']:
         attached = ''
         interfaceID = INTERFACE['NetworkInterfaceId']
@@ -128,19 +131,17 @@ def lambda_handler(event, context):
         THIS_INTERFACE.create_tags(Tags=Interface_new_name)
         #print interface
         print " ---> [ " + THIS_INTERFACE.network_interface_id + " interface has been labeled: " + named + " ] "
-        counter = name_counter(counter)
-    logging_debug(" interface rename ", "ending")
-    print "[ <!> _____ Processed: " + str(counter) + " interfaces _____ <!> ]"
+        counter = name_counter(counter, 'ADD')
+    logging_debug(" interface rename ", "ending", counter)
     ############################################################################
     # --- Snapshot labeling process ---
     ############################################################################
-    logging_debug(" snapshot labeling ", "starting")
+    logging_debug(" snapshot labeling ", "starting", 0)
     describe_all_snapshots = ec2_client.describe_snapshots(OwnerIds=OIDS)
     total_objects = total_objects + counter
-    counter = 0
+    counter = name_counter(counter, 'RESET')
     for SNAPSHOT in describe_all_snapshots['Snapshots']:
         THIS_SNAPSHOT = ''
-        ALL_TAGS = ''
         NewSnapshotName=''
         SnapshotID = SNAPSHOT['SnapshotId']
         THIS_SNAPSHOT = ec2.Snapshot(SnapshotID)
@@ -173,19 +174,17 @@ def lambda_handler(event, context):
             THIS_SNAPSHOT.create_tags(Tags=Snapshot_new_name)
         else:
             print "--> Snapshot: " + SnapshotID + " already has a name: " + SnapshotName
-        counter = name_counter(counter)
-    logging_debug(" snapshot labeling ", "ending")
-    print "[ <!> _____ Processed: " + str(counter) + " snapshots _____ <!> ]"
+        counter = name_counter(counter, 'ADD')
+    logging_debug(" snapshot labeling ", "ending", counter)
     ############################################################################
     # --- My AMI labeling process ---
     ############################################################################
-    logging_debug(" My AMIs labeling ", "starting")
+    logging_debug(" My AMIs labeling ", "starting", 0)
     describe_all_images = ec2_client.describe_images(Owners=OIDS)
     total_objects = total_objects + counter
-    counter = 0
+    counter = name_counter(counter, 'RESET')
     for IMAGE in describe_all_images['Images']:
         THIS_IMAGE = ''
-        ALL_TAGS = ''
         ImageID = IMAGE['ImageId']
         THIS_IMAGE = ec2.Image(ImageID)
         THIS_IMAGES_OWNER = THIS_IMAGE.owner_id
@@ -201,9 +200,8 @@ def lambda_handler(event, context):
             THIS_IMAGE.create_tags(Tags=Image_new_name)
         else:
             print "--> AMI " + ImageID + "already has a name - " + ImageName
-        counter = name_counter(counter)
-    logging_debug(" My AMIs labeling ", "ending")
-    print "[ <!> _____ Processed: " + str(counter) + " AMIs _____ <!> ]"
+        counter = name_counter(counter, 'ADD')
+    logging_debug(" My AMIs labeling ", "ending", counter)
     ############################################################################
     total_objects = total_objects + counter
     print "[ [ ----->>>>> [ [ [ Processed: " + str(total_objects) + " total objects ] ] ] <<<<<----- ] ]"
