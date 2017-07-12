@@ -13,9 +13,9 @@ ec2_client = boto3.client('ec2')
 # Getting the Account ID needed to filter snapshots/AMIs
 My_AWS_ID = boto3.client('sts').get_caller_identity().get('Account')
 OIDS = [My_AWS_ID]
-# Label being applied to anything not named and no longer attached
+# Label being applied to anything not named and no longer attached, feel free to change 
 UnattachedLabel = "- UNATTACHED - "
-# Used as a temp variable to identify things without names
+# Used as a temp variable to identify things without names, change to whatever
 UnNamedLabel = "(no name)"
 # Don't touch these unless Amazon changes their labeling on marketplace snapshots!
 GenericSnapshot = "Created"
@@ -206,4 +206,4 @@ def lambda_handler(event, context):
     print "[ <!> _____ Processed: " + str(counter) + " AMIs _____ <!> ]"
     ############################################################################
     total_objects = total_objects + counter
-    print "[ [ ----->>>>> [ [ [ Processed:" + str(total_objects) + " total objects ] ] ] <<<<<----- ] ]"
+    print "[ [ ----->>>>> [ [ [ Processed: " + str(total_objects) + " total objects ] ] ] <<<<<----- ] ]"
