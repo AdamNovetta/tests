@@ -118,7 +118,10 @@ def lambda_handler(event, context):
                 else:
                     named = "No-Instance-ID"
             else:
-                named = "non-ec2-network-interface"
+                try:
+                    named = interface['Description']
+                except:
+                    named = "non-ec2-network-interface"
         if attached == "available":
             named = UnattachedLabel
         Interface_new_name = [{'Key': 'Name','Value': named}]
