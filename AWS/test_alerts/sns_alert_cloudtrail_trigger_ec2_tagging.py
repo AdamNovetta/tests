@@ -35,6 +35,12 @@ ec2_region_name = "us-east-1"
 # functions to connect to AWS API
 ec2 = boto3.resource("ec2", region_name=ec2_region_name)
 ec2_client = boto3.client('ec2')
+# IAM
+iam_client = boto3.client('iam')
+paginator = iam_client.get_paginator('list_account_aliases')
+for response in paginator.paginate():
+    AccountAliases = response['AccountAliases']
+AWSAccountName = str(AccountAliases)
 # SNS
 sns_client = boto3.client('sns')
 My_AWS_ID = boto3.client('sts').get_caller_identity().get('Account')
@@ -66,11 +72,6 @@ def lambda_handler(event, context):
     sns_message += " ] created instance(s), "
     for ids in instance_ids:
         sns_message += "\n" + ids
-    sns_message += "\n be created in this aws account"
-    sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='EC2 Instances Created')
+    sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject=AWSAccountName+' - EC2 Instances Created' )
     for instance in instance_ids:
         ec2_client.create_tags(Resources=[instance],Tags=[{'Key': 'Created-By', 'Value': instance_owner },])
-        
-        
-        
-        
