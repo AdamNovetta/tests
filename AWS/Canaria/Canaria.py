@@ -20,6 +20,13 @@ s3_object = boto3.resource('s3')
 sns_client = boto3.client('sns')
 My_AWS_ID = boto3.client('sts').get_caller_identity().get('Account')
 sns_arn = 'arn:aws:sns:' + ec2_region_name + ':' + My_AWS_ID + ':AWS_Alerts'
+# IAM client to get the name of this account
+iam_client = boto3.client('iam')
+paginator = iam_client.get_paginator('list_account_aliases')
+for response in paginator.paginate():
+    AccountAliases = response['AccountAliases']
+AWSAccountName = str(AccountAliases)
+print "Running report on account: " + AWSAccountName
 #  -----------------------------------------------------------------------------
 # Get all bucket names
 def get_all_bucket_names():
@@ -59,6 +66,7 @@ def lambda_handler(event, context):
     problem_buckets = 0
     sns_message = ''
     MyBuckets = get_all_bucket_names()
+    SNS_Subject = "AWS Account - " + str(AWSAccountName) + " - S3 Bucket permission report"
     #print(MyBuckets)
     for BucketName in MyBuckets:
         ACL_output = ''
@@ -90,8 +98,9 @@ def lambda_handler(event, context):
             sns_message += "\n"
         number_problem_buckets = str(problem_buckets)
         sns_message +=  "\n [ Total buckets with suspect permissions: " + number_problem_buckets + " ]\n"   
-        sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='S3 Bucket permission report')
+        sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject=SNS_Subject)
     else:
         print "[ No buckeets with open permissions! ]"
         sns_message +=  "Found no buckets with open permissions."   
-        sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='S3 Bucket permission report')
+        sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject=SNS_Subject)
+
