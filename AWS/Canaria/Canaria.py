@@ -82,11 +82,16 @@ def lambda_handler(event, context):
                                 if BucketName not in reported_buckets:
                                     reported_buckets[BucketName] = "Any AWS user (not just on your account) "
                                     problem_buckets += 1
-    print "Reported buckets: "
-    print pprint(reported_buckets)
-    for rp in reported_buckets:
-        sns_message += "\nBucket:  [ " + rp + " ]  \n  Has open permissions to: " + reported_buckets[rp]
-        sns_message += "\n"
-    number_problem_buckets = str(problem_buckets)
-    sns_message +=  "\n [ Total buckets with suspect permissions: " + number_problem_buckets + " ]\n"   
-    sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='S3 Bucket permission reporting')
+    if problem_buckets > 0:                                
+        print "Reported buckets: "
+        print pprint(reported_buckets)
+        for rp in reported_buckets:
+            sns_message += "\nBucket:  [ " + rp + " ]  \n  Has open permissions to: " + reported_buckets[rp]
+            sns_message += "\n"
+        number_problem_buckets = str(problem_buckets)
+        sns_message +=  "\n [ Total buckets with suspect permissions: " + number_problem_buckets + " ]\n"   
+        sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='S3 Bucket permission report')
+    else:
+        print "[ No buckeets with open permissions! ]"
+        sns_message +=  "Found no buckets with open permissions."   
+        sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='S3 Bucket permission report')
