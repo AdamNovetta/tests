@@ -61,12 +61,16 @@ def lambda_handler(event, context):
             instance_ids.append(items['instanceId'])
             #instance_ids.append(all_event_items[items]['instanceId'])
     
-    sns_message =  "\n\n User [ "
+    sns_message =  "\n\nUser [ "
     sns_message +=  instance_owner
-    sns_message += " ] requested instances, "
+    sns_message += " ] created instance(s), "
     for ids in instance_ids:
         sns_message += "\n" + ids
-    sns_message += " be created in this aws account"
-    sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='Alert! Cloudtrail triggered')
+    sns_message += "\n be created in this aws account"
+    sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='EC2 Instances Created')
     for instance in instance_ids:
         ec2_client.create_tags(Resources=[instance],Tags=[{'Key': 'Created-By', 'Value': instance_owner },])
+        
+        
+        
+        
