@@ -67,7 +67,7 @@ def lambda_handler(event, context):
         if "instanceId" in items:
             instance_ids.append(items['instanceId'])
             count += 1
-    sns_message =  "\n\nUser [ " + instance_owner + " ] created " + str(count) + " " + instance_type + " instance(s): "
+    sns_message =  "\n\nUser [ " + instance_owner + " ] created (" + str(count) + " x " + instance_type + ") instance(s): "
     for ids in instance_ids:
         sns_message += "\n" + ids
     sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject=AWSAccountName+' - EC2 Instances Created' )
