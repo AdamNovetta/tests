@@ -36,6 +36,7 @@ ec2_region_name = "us-east-1"
 ec2 = boto3.resource("ec2", region_name=ec2_region_name)
 ec2_client = boto3.client('ec2')
 # IAM
+AWSAccountName = ''
 iam_client = boto3.client('iam')
 paginator = iam_client.get_paginator('list_account_aliases')
 for response in paginator.paginate():
@@ -63,7 +64,6 @@ def lambda_handler(event, context):
     instance_ids = []
     count = 0
     for items in all_event_items:
-        print(items)
         if "instanceId" in items:
             instance_ids.append(items['instanceId'])
             count += 1
@@ -73,4 +73,3 @@ def lambda_handler(event, context):
     sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject=AWSAccountName+' - EC2 Instances Created' )
     for instance in instance_ids:
         ec2_client.create_tags(Resources=[instance],Tags=[{'Key': 'Created-By', 'Value': instance_owner },])
-        
