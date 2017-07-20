@@ -55,7 +55,7 @@ def bucket_contents(target_bucket):
     return output
 # 'Main' function
 def lambda_handler(event, context):
-    reported_buckets  = []
+    reported_buckets  = {}
     problem_buckets = 0
     sns_message = ''
     MyBuckets = get_all_bucket_names()
@@ -76,20 +76,17 @@ def lambda_handler(event, context):
                         for grant in all_types:
                             if "AllUsers" in all_types[grant] :
                                 if BucketName not in reported_buckets:
-                                    reported_buckets.append(BucketName)
+                                    reported_buckets[BucketName] = "Everyone / Public Access"
                                     problem_buckets += 1
                             if "AuthenticatedUsers" in all_types[grant]:
                                 if BucketName not in reported_buckets:
-                                    reported_buckets.append(BucketName)
+                                    reported_buckets[BucketName] = "Any AWS user (not just on your account) "
                                     problem_buckets += 1
-    print "reported buckets: "
-    print reported_buckets
+    print "Reported buckets: "
+    print pprint(reported_buckets)
     for rp in reported_buckets:
-        sns_message += "\nBucket: " + rp + " has open permissions!"
-        sns_message += "\nContents: "
-        sns_message += "\n"
-        sns_message += bucket_contents(rp)
+        sns_message += "\nBucket:  [ " + rp + " ]  \n  Has open permissions to: " + reported_buckets[rp]
         sns_message += "\n"
     number_problem_buckets = str(problem_buckets)
-    sns_message +=  "\n [ Total buckets with permissions issues: " + number_problem_buckets + " ]\n"
-    sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='Alert! S3 buckets with open permissions')
+    sns_message +=  "\n [ Total buckets with suspect permissions: " + number_problem_buckets + " ]\n"   
+    sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='S3 Bucket permission reporting')
