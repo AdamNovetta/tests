@@ -59,17 +59,15 @@ def lambda_handler(event, context):
     print(json.dumps(event, cls=Render))
     all_event_items = event['detail']['responseElements']['instancesSet']['items']
     instance_owner = event['detail']['userIdentity']['userName']
+    instance_type = event['detail']['requestParameters']['instanceType']
     instance_ids = []
-    #ec2_instance_id = event['detail']['responseElements']['instancesSet']['items'][0]['instanceId']
+    count = 0
     for items in all_event_items:
         print(items)
         if "instanceId" in items:
             instance_ids.append(items['instanceId'])
-            #instance_ids.append(all_event_items[items]['instanceId'])
-    
-    sns_message =  "\n\nUser [ "
-    sns_message +=  instance_owner
-    sns_message += " ] created instance(s): "
+            count += 1
+    sns_message =  "\n\nUser [ " + instance_owner + " ] created " + count + " " + instance_type + " instance(s): "
     for ids in instance_ids:
         sns_message += "\n" + ids
     sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject=AWSAccountName+' - EC2 Instances Created' )
