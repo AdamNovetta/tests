@@ -69,9 +69,10 @@ def lambda_handler(event, context):
     
     sns_message =  "\n\nUser [ "
     sns_message +=  instance_owner
-    sns_message += " ] created instance(s), "
+    sns_message += " ] created instance(s): "
     for ids in instance_ids:
         sns_message += "\n" + ids
     sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject=AWSAccountName+' - EC2 Instances Created' )
     for instance in instance_ids:
         ec2_client.create_tags(Resources=[instance],Tags=[{'Key': 'Created-By', 'Value': instance_owner },])
+        
