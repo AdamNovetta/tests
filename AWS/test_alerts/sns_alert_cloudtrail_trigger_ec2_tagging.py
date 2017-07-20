@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-''' cloudwatch rule/trigger event-pattern:
+''' cloudwatch event-pattern trigger:
 {
   "source": [
     "aws.ec2"
@@ -35,9 +35,6 @@ ec2_region_name = "us-east-1"
 # functions to connect to AWS API
 ec2 = boto3.resource("ec2", region_name=ec2_region_name)
 ec2_client = boto3.client('ec2')
-s3_client = boto3.client('s3')
-s3_buckets = s3_client.list_buckets()
-s3_object = boto3.resource('s3')
 # SNS
 sns_client = boto3.client('sns')
 My_AWS_ID = boto3.client('sts').get_caller_identity().get('Account')
@@ -59,13 +56,17 @@ def lambda_handler(event, context):
     instance_ids = []
     #ec2_instance_id = event['detail']['responseElements']['instancesSet']['items'][0]['instanceId']
     for items in all_event_items:
+        print(items)
         if "instanceId" in items:
-            instance_ids.aapend(all_event_items[items]['instanceId'])
-
-    sns_message =  "(THIS IS A TEST)\n\n The user [ "
+            instance_ids.append(items['instanceId'])
+            #instance_ids.append(all_event_items[items]['instanceId'])
+    
+    sns_message =  "\n\n User [ "
     sns_message +=  instance_owner
-    sns_message += " ] requested instance, "
-    sns_message += ami_ids
+    sns_message += " ] requested instances, "
+    for ids in instance_ids:
+        sns_message += "\n" + ids
     sns_message += " be created in this aws account"
     sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject='Alert! Cloudtrail triggered')
-    ec2_client.create_tags(Resources=[instance_ids],Tags=[{'Key': 'Admin', 'Value': instance_owner },])
+    for instance in instance_ids:
+        ec2_client.create_tags(Resources=[instance],Tags=[{'Key': 'Created-By', 'Value': instance_owner },])
