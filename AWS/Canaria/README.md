@@ -7,11 +7,12 @@ This program alerts an SNS topic to possible insecure configurations. Currently 
 #### Usage:
    - Run manually in Lambda or (recommended) on a triggered cron
    (suggested hourly or sooner, depending on AWS usage)
-   - Create an IAM role with the following policies attached:
+   - **Create an IAM role with the following policies attached**:
       - AmazonS3FullAccess
       - AmazonSNSRole
       - IAMReadOnlyAccess
       - AmazonSNSFullAccess
+   - Create an SNS Topic called: **AWS_Alerts** (or if you reuse an existing SNS topic, change the variable **sns_arn** in the script to your topic)
    - Lambda Configuration:
         * runtime : python 2.7
         * handler : lambda_function.lambda_handler
