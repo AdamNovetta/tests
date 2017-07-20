@@ -20,7 +20,7 @@ This program alerts an SNS topic to possible insecure configurations. Currently 
         * description : Sends alert to *SNS TOPIC* for insecure configurations
         Advanced Configuration:
             * Memory : 128 MB
-            * Timeout : 1 min (should be enough several thousand objects)
+            * Timeout : 1 min (should be enough several hundred buckets)
             * DQL Resource: None
             * VPC : No VPC (not needed really...)
             * Enable active tracing : unchecked (also not really needed)
