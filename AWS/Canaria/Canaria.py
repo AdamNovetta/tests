@@ -4,7 +4,7 @@ import json, boto3, logging, time, datetime
 from pprint import pprint
 # Program meta -----------------------------------------------------------------
 vers = "1.0"
-prog_name = "Canaria"
+ProgramName = "Canaria"
 #  -----------------------------------------------------------------------------
 # output logging for INFO, to see full output in cloudwatch, default to warning
 logger = logging.getLogger()
@@ -12,17 +12,17 @@ logger.setLevel(logging.WARNING)
 #  -----------------------------------------------------------------------------
 # make connections to services
 # S3
-ec2_region_name = "us-east-1"
-s3_client = boto3.client('s3')
-s3_buckets = s3_client.list_buckets()
-s3_object = boto3.resource('s3')
+EC2RegionName = "us-east-1"
+S3Client = boto3.client('s3')
+S3Buckets = S3Client.list_buckets()
+S3Object = boto3.resource('s3')
 # SNS
-sns_client = boto3.client('sns')
-My_AWS_ID = boto3.client('sts').get_caller_identity().get('Account')
-sns_arn = 'arn:aws:sns:' + ec2_region_name + ':' + My_AWS_ID + ':AWS_Alerts'
+SNSClient = boto3.client('sns')
+MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
+SNSARN = 'arn:aws:sns:' + EC2RegionName + ':' + MyAWSID + ':AWS_Alerts'
 # IAM client to get the name of this account
-iam_client = boto3.client('iam')
-paginator = iam_client.get_paginator('list_account_aliases')
+IAMClient = boto3.client('iam')
+paginator = IAMClient.get_paginator('list_account_aliases')
 for response in paginator.paginate():
     AccountAliases = response['AccountAliases']
 AWSAccountName = str(AccountAliases)
@@ -30,77 +30,76 @@ print "Running report on account: " + AWSAccountName
 #  -----------------------------------------------------------------------------
 # Get all bucket names
 def get_all_bucket_names():
-    all_bucket_names = []
-    for buckets in s3_buckets:
+    AllBucketNames = []
+    for buckets in S3Buckets:
         if "Buckets" in buckets:
-            all_buckets = s3_buckets[buckets]
-            for bucket in all_buckets:
-                for bucket_data in bucket:
-                    if "Name" in bucket_data:
-                        all_bucket_names.append(bucket[bucket_data])
-    return all_bucket_names
+            AllBuckets = S3Buckets[buckets]
+            for bucket in AllBuckets:
+                for BucketData in bucket:
+                    if "Name" in BucketData:
+                        AllBucketNames.append(bucket[BucketData])
+    return AllBucketNames
 # check acl of an object
-def check_acl_status(target, object_type, parent_bucket):
-    ACL_data = ''
-    if "bucket" in object_type:
-        bucket_acl = s3_object.BucketAcl(target)
-        ACL_data = bucket_acl.grants
-    if "object" in object_type:
-        object_acl = s3_object.ObjectAcl(parent_bucket, target)
-        ACL_data = object_acl
-    return ACL_data
+def check_acl_status(target, ObjectType, ParentBucket):
+    ACLData = ''
+    if "bucket" in ObjectType:
+        bucket_acl = S3Object.BucketAcl(target)
+        ACLData = bucket_acl.grants
+    if "object" in ObjectType:
+        object_acl = S3Object.ObjectAcl(ParentBucket, target)
+        ACLData = object_acl
+    return ACLData
 # print contents of bucket
-def bucket_contents(target_bucket):
+def bucket_contents(TargetBucket):
     output = ''
-    available_resources = s3_client.list_objects(Bucket=target_bucket)
-    output = "\n[ " + target_bucket + " ]"
-    if 'Contents' in available_resources:
-        for item in available_resources['Contents']:
+    AvailableResources = S3Client.list_objects(Bucket=TargetBucket)
+    output = "\n[ " + TargetBucket + " ]"
+    if 'Contents' in AvailableResources:
+        for item in AvailableResources['Contents']:
             output +=  "\n|- " + item['Key']
     else:
         output = "(Bucket is currently empty)"
     return output
 # 'Main' function
 def lambda_handler(event, context):
-    reported_buckets  = {}
-    problem_buckets = 0
-    sns_message = ''
+    ReportedBuckets  = {}
+    ProblemBuckets = 0
+    SNSMessage = ''
     MyBuckets = get_all_bucket_names()
-    SNS_Subject = "AWS Account - " + str(AWSAccountName) + " - S3 Bucket permission report"
+    SNSSubject = "AWS Account - " + str(AWSAccountName) + " - S3 Bucket permission report"
     #print(MyBuckets)
     for BucketName in MyBuckets:
-        ACL_output = ''
+        ACLOutput = ''
         try:
-            s3_client.head_bucket(Bucket=BucketName)
+            S3Client.head_bucket(Bucket=BucketName)
             viewable = True
         except:
             viewable = False
         if viewable == True:
-            ACL_output = check_acl_status(BucketName, 'bucket', '')
-            for i in ACL_output:
+            ACLOutput = check_acl_status(BucketName, 'bucket', '')
+            for i in ACLOutput:
                 for  grants in i:
                     if "Grantee" in grants:
-                        all_types = i[grants]
-                        for grant in all_types:
-                            if "AllUsers" in all_types[grant] :
-                                if BucketName not in reported_buckets:
-                                    reported_buckets[BucketName] = "Everyone / Public Access"
-                                    problem_buckets += 1
-                            if "AuthenticatedUsers" in all_types[grant]:
-                                if BucketName not in reported_buckets:
-                                    reported_buckets[BucketName] = "Any AWS user (not just on your account) "
-                                    problem_buckets += 1
-    if problem_buckets > 0:                                
+                        AllTypes = i[grants]
+                        for grant in AllTypes:
+                            if "AllUsers" in AllTypes[grant] :
+                                if BucketName not in ReportedBuckets:
+                                    ReportedBuckets[BucketName] = "Everyone / Public Access"
+                                    ProblemBuckets += 1
+                            if "AuthenticatedUsers" in AllTypes[grant]:
+                                if BucketName not in ReportedBuckets:
+                                    ReportedBuckets[BucketName] = "Any AWS user (not just on your account) "
+                                    ProblemBuckets += 1
+    if ProblemBuckets > 0:
         print "Reported buckets: "
-        print pprint(reported_buckets)
-        for rp in reported_buckets:
-            sns_message += "\nBucket:  [ " + rp + " ]  \n  Has open permissions to: " + reported_buckets[rp]
-            sns_message += "\n"
-        number_problem_buckets = str(problem_buckets)
-        sns_message +=  "\n [ Total buckets with suspect permissions: " + number_problem_buckets + " ]\n"   
-        sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject=SNS_Subject)
+        print pprint(ReportedBuckets)
+        for rp in ReportedBuckets:
+            SNSMessage += "\nBucket:  [ " + rp + " ]  \n  Has open permissions to: " + ReportedBuckets[rp]
+            SNSMessage += "\n"
+        NumberOfProblemBuckets = str(ProblemBuckets)
+        SNSMessage +=  "\n [ Total buckets with suspect permissions: " + NumberOfProblemBuckets + " ]\n"
+        SNSClient.publish(TopicArn=SNSARN, Message=SNSMessage, Subject=SNSSubject)
     else:
         print "[ No buckeets with open permissions! ]"
-        sns_message +=  "Found no buckets with open permissions."   
-        sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject=SNS_Subject)
-
+        SNSMessage +=  "Found no buckets with open permissions."
+        SNSClient.publish(TopicArn=SNSARN, Message=SNSMessage, Subject=SNSSubject)

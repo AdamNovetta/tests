@@ -30,27 +30,27 @@ def lambda_handler(event, context):
     print ls
     print "[ Orc routine start time : " + timer + " ]"
     # set base filters for running/stopped instances, and matching orc tags
-    filter_running = [
+    FilterRunning = [
         {'Name': 'instance-state-name','Values': ['running']},
         {'Name': 'tag:autoOrc-down','Values': [timer]}
         ]
-    filter_stopped = [
+    FilterStopped = [
         {'Name': 'instance-state-name','Values': ['stopped']},
         {'Name': 'tag:autoOrc-up','Values': [timer]}
         ]
     # collect all running instances and filter for orc down tag
-    orc_instances = ec2.instances.filter(Filters=filter_running)
-    for instance in orc_instances:
+    OrcInstances = ec2.instances.filter(Filters=FilterRunning)
+    for instance in OrcInstances:
         name = get_instance_name(instance.id)
         # Print the instances stopping for logging purposes
         print "Shutting down instance: "
         print(instance.id) + " [ Name : " + name + " ] "
         instance.stop()
     # determine all stopped instances and filter for the  orc up tag
-    orc_instances_up = ec2.instances.filter(Filters=filter_stopped)
+    OrcInstancesUp = ec2.instances.filter(Filters=FilterStopped)
     # check to make sure we're only starting stuff on weekdays
     if d.isoweekday() in range(1, 6):
-        for instance in orc_instances_up:
+        for instance in OrcInstancesUp:
             name = get_instance_name(instance.id)
             # Print the instances starting for logging purposes
             print "---> Starting instance: "
