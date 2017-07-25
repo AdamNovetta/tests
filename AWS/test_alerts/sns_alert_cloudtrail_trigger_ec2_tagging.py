@@ -23,29 +23,29 @@ import json, boto3, logging, time, datetime,pprint
 pp = pprint.PrettyPrinter(indent=4)
 # Program meta -----------------------------------------------------------------
 vers = "1.0"
-prog_name = "sns_alert_cloudtrail_trigger"
+ProgramName = "sns_alert_cloudtrail_trigger"
 #  -----------------------------------------------------------------------------
 # output logging for INFO, to see full output in cloudwatch, default to warning
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 #  -----------------------------------------------------------------------------
 # make connections to services
 # S3
-ec2_region_name = "us-east-1"
+EC2RegionName = "us-east-1"
 # functions to connect to AWS API
-ec2 = boto3.resource("ec2", region_name=ec2_region_name)
-ec2_client = boto3.client('ec2')
+ec2 = boto3.resource("ec2", region_name=EC2RegionName)
+EC2Client = boto3.client('ec2')
 # IAM
 AWSAccountName = ''
-iam_client = boto3.client('iam')
-paginator = iam_client.get_paginator('list_account_aliases')
+IAMClient = boto3.client('iam')
+paginator = IAMClient.get_paginator('list_account_aliases')
 for response in paginator.paginate():
     AccountAliases = response['AccountAliases']
 AWSAccountName = str(AccountAliases)
 # SNS
-sns_client = boto3.client('sns')
-My_AWS_ID = boto3.client('sts').get_caller_identity().get('Account')
-sns_arn = 'arn:aws:sns:' + ec2_region_name + ':' + My_AWS_ID + ':AWS_Alerts'
+SNSClient = boto3.client('sns')
+MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
+SNSARN = 'arn:aws:sns:' + EC2RegionName + ':' + MyAWSID + ':AWS_Alerts'
 #  -----------------------------------------------------------------------------
 class Render(json.JSONEncoder):
 
@@ -58,18 +58,18 @@ class Render(json.JSONEncoder):
 # Main function
 def lambda_handler(event, context):
     print(json.dumps(event, cls=Render))
-    all_event_items = event['detail']['responseElements']['instancesSet']['items']
-    instance_owner = event['detail']['userIdentity']['userName']
-    instance_type = event['detail']['requestParameters']['instanceType']
-    instance_ids = []
+    AllEventItems = event['detail']['responseElements']['instancesSet']['items']
+    InstanceOwner = event['detail']['userIdentity']['userName']
+    InstanceType = event['detail']['requestParameters']['instanceType']
+    InstanceIDs = []
     count = 0
-    for items in all_event_items:
+    for items in AllEventItems:
         if "instanceId" in items:
-            instance_ids.append(items['instanceId'])
+            InstanceIDs.append(items['instanceId'])
             count += 1
-    sns_message =  "\n\nUser [ " + instance_owner + " ] created [ " + str(count) + " x " + instance_type + " ] instance(s): "
-    for ids in instance_ids:
-        sns_message += "\n" + ids
-    sns_client.publish(TopicArn=sns_arn, Message=sns_message, Subject=AWSAccountName+' - EC2 Instances Created' )
-    for instance in instance_ids:
-        ec2_client.create_tags(Resources=[instance],Tags=[{'Key': 'Created-By', 'Value': instance_owner },])
+    SNSMessage =  "\n\nUser [ " + InstanceOwner + " ] created [ " + str(count) + " x " + InstanceType + " ] instance(s): "
+    for ids in InstanceIDs:
+        SNSMessage += "\n" + ids
+    SNSClient.publish(TopicArn=SNSARN, Message=SNSMessage, Subject=AWSAccountName+' - EC2 Instances Created' )
+    for instance in InstanceIDs:
+        EC2Client.create_tags(Resources=[instance],Tags=[{'Key': 'Created-By', 'Value': InstanceOwner },])
