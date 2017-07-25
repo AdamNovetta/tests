@@ -19,8 +19,7 @@
 '''
 #  -----------------------------------------------------------------------------
 # tools needed
-import json, boto3, logging, time, datetime,pprint
-pp = pprint.PrettyPrinter(indent=4)
+import json, boto3, logging, time, datetime
 # Program meta -----------------------------------------------------------------
 vers = "1.0"
 ProgramName = "sns_alert_cloudtrail_trigger"
@@ -30,7 +29,6 @@ logger = logging.getLogger()
 logger.setLevel(logging.WARNING)
 #  -----------------------------------------------------------------------------
 # make connections to services
-# S3
 EC2RegionName = "us-east-1"
 # functions to connect to AWS API
 ec2 = boto3.resource("ec2", region_name=EC2RegionName)

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # tools needed
 import json, boto3, logging, time, datetime
-from pprint import pprint
 from time import mktime
 # Program meta -----------------------------------------------------------------
 vers = "1.0"
@@ -32,4 +31,4 @@ def lambda_handler(event, context):
     print "EVENT: " + str(event)
     print "\nCONTEXT: " + str(context)
     SNSMessage =  "Cloudtrail log \n [ " + json.dumps(event, cls=Render) + " ]\n"
-    SNSClient.publish(TopicArn=SNSARN, Message=SNSMessage, Subject='Alert! Cloudtrail triggered')
+    SNSClient.publish(TopicArn=SNSARN, Message=SNSMessage, Subject='Alert! Cloudtrail triggered event')
