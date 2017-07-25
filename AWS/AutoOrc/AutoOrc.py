@@ -80,9 +80,9 @@ def lambda_handler(event, context):
             ErrorCounter += 1
             print "error stopping " + name + ", error code: " + str(StateCode)
     if (counter > 0):
-        putCloudWatchMetric(MyAWSID, counter, 'autoOrc-up', 'Success')
+        putCloudWatchMetric(MyAWSID, counter, 'autoOrc-down', 'Success')
     if (ErrorCounter > 0):
-        putCloudWatchMetric(MyAWSID, ErrorCounter, 'autoOrc-up', 'Error')
+        putCloudWatchMetric(MyAWSID, ErrorCounter, 'autoOrc-down', 'Error')
     # determine all stopped instances and filter for the  orc up tag
     OrcInstancesUp = ec2.instances.filter(Filters=FilterStopped)
     counter = 0
@@ -103,9 +103,9 @@ def lambda_handler(event, context):
             if StateCode in BadStartCodes:
                 ErrorCounter += 1
                 print "error starting " + name + ", error code: " + str(StateCode)
-        if (counter > 0):        
-            putCloudWatchMetric(MyAWSID, counter, 'autoOrc-down', 'Success')
+        if (counter > 0):
+            putCloudWatchMetric(MyAWSID, counter, 'autoOrc-up', 'Success')
         if (ErrorCounter > 0):
-            putCloudWatchMetric(MyAWSID, ErrorCounter, 'autoOrc-down', 'Error')
+            putCloudWatchMetric(MyAWSID, ErrorCounter, 'autoOrc-up', 'Error')
     print "[ Orc routine finished ]"
     print ls
