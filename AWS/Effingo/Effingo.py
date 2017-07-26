@@ -16,12 +16,12 @@ deletelist = []
 # Setup logging TODO: send to S3!!!!
 def logging_output():
     logging.basicConfig(level=logging.WARNING)
-    start_message = 'Started taking %(period)s snapshots at %(date)s' % {
+    StartMessage = 'Started taking %(period)s snapshots at %(date)s' % {
         'period': period,
         'date': datetime.today().strftime('%d-%m-%Y %H:%M:%S')
     }
-    message += start_message + "\n\n"
-    logging.info(start_message)
+    message += StartMessage + "\n\n"
+    logging.info(StartMessage)
 
 # AWS assumptions --------------------------------------------------------------
 EC2RegionName = "us-east-1"
