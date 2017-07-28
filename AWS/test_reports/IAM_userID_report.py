@@ -16,6 +16,7 @@ IAM = boto3.resource('iam')
 IAM_client = boto3.client('iam')
 #  -----------------------------------------------------------------------------
 def lambda_handler(event, context):
+    
     class Render(json.JSONEncoder):
     
         def default(self, obj):
@@ -23,14 +24,16 @@ def lambda_handler(event, context):
                 return int(mktime(obj.timetuple()))
     
             return json.JSONEncoder.default(self, obj)
+            
     AllIAMUsers = IAM_client.get_paginator('list_users')
+    
     for users in AllIAMUsers.paginate():
         # look at all user data by uncommenting this line
         #print(json.dumps(users, cls=Render))
-        print(line)
-        print "IAM Username    |    IAM User ID"
-        print(line)
+        
+        print line + "\nIAM Username    |    IAM User ID\n" + line
         for user in users['Users']:
             print user['UserName'] + " | " + user['UserId']
+            
         print(line)
         
