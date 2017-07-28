@@ -40,7 +40,11 @@ IAMClient = boto3.client('iam')
 paginator = IAMClient.get_paginator('list_account_aliases')
 for response in paginator.paginate():
     AccountAliases = response['AccountAliases']
-AWSAccountName = str(AccountAliases)
+if len(AccountAliases) > 1:
+    for account in AccountAliases:
+        AWSAccountName += account + " - "
+else:
+    AWSAccountName = AccountAliases[0]
 # SNS
 SNSClient = boto3.client('sns')
 MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
@@ -66,9 +70,18 @@ def lambda_handler(event, context):
         if "instanceId" in items:
             InstanceIDs.append(items['instanceId'])
             count += 1
-    SNSMessage =  "\n\nUser [ " + InstanceOwner + " ] created [ " + str(count) + " x " + InstanceType + " ] instance(s): "
+    SNSMessage =  "[ Accont auto-alert for " + AWSAccountName + " ]"  
+    SNSMessage += "\n\nUser [ " + InstanceOwner + " ] \n Created [ " 
+    SNSMessage += str(count) + " - " + InstanceType + " ] instance(s): "
     for ids in InstanceIDs:
-        SNSMessage += "\n" + ids
-    SNSClient.publish(TopicArn=SNSARN, Message=SNSMessage, Subject=AWSAccountName+' - EC2 Instances Created' )
+        SNSMessage += "\n  " + ids
+    SNSClient.publish(
+    TopicArn=SNSARN, 
+    Message=SNSMessage, 
+    Subject=AWSAccountName+' - EC2 Instances Created' 
+    )
     for instance in InstanceIDs:
-        EC2Client.create_tags(Resources=[instance],Tags=[{'Key': 'Created-By', 'Value': InstanceOwner },])
+        EC2Client.create_tags(
+        Resources=[instance],
+        Tags=[{'Key': 'Created-By', 'Value': InstanceOwner },]
+        )
