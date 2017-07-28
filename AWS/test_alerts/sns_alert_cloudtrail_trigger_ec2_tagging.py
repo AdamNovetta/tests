@@ -20,6 +20,7 @@
 #  -----------------------------------------------------------------------------
 # tools needed
 import json, boto3, logging, time, datetime
+from time import mktime
 # Program meta -----------------------------------------------------------------
 vers = "1.0"
 ProgramName = "sns_alert_cloudtrail_trigger"
