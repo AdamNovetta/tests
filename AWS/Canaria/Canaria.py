@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # tools needed
-import json, boto3, logging, time, datetime
+import json
+import boto3
+import logging
+import time
+import datetime
 from pprint import pprint
 # Program meta -----------------------------------------------------------------
 vers = "1.0"
