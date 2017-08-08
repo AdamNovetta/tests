@@ -17,7 +17,7 @@ logger.setLevel(logging.WARNING)
 # List witch snapshots to delete
 deletelist = []
 #run daily, if sat then run weekly, if last day of the month run monthly
-# Setup logging TODO: send to S3!!!!
+
 def logging_output():
     logging.basicConfig(level=logging.WARNING)
     StartMessage = 'Started taking %(period)s snapshots at %(date)s' % {
