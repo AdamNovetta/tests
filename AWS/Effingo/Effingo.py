@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # tools needed
-import boto3, calendar, tiime, sys, logging
+import boto3
+import calendar
+import tiime
+import sys
+import logging
 from datetime import datetime
 # Program meta -----------------------------------------------------------------
 vers = "1.0"
