@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # tools needed
-import json, boto3, logging, time, datetime
+import json
+import boto3
+import logging
+import time
+import datetime
 ################################################################################
 # Program meta -----------------------------------------------------------------
 vers = "4.1"
@@ -23,6 +27,8 @@ GenericSnapshot = "Created"
 # ------------------------------------------------------------------------------
 # Support Functions
 # ------------------------------------------------------------------------------
+
+
 # debug helper, has nothing to do with actual renaming process
 def logging_debug(proc, state, count):
     logger = logging.getLogger()
@@ -33,13 +39,17 @@ def logging_debug(proc, state, count):
     print "[ > | - " + ProgramName + " - " + vers + " | ---> " + state + proc + " process <--- @ " + str(d) + " < ]"
     if "ending" in state:
         print "[ <!> ____ Processed: " + str(count) + " objects while running " + proc + " task _____ <!> ]"
+
+
 # Iteration counter for naming passes / debugging
-def name_counter(ThisPass, mode):
-    if "ADD" in mode:
-        ThisPass += 1
-    if "RESET" in mode:
-        ThisPass = 0
-    return ThisPass
+class name_counter:
+        def __init__(self, number):
+                self.number = number
+        def add(self):
+                self.number +=1
+        def reset(self):
+                self.number = 0
+
 
 # returns the instance Name|tag:value given an instanceID
 def get_instance_name(ec2id):
@@ -53,6 +63,7 @@ def get_instance_name(ec2id):
         InstanceName = UnNamedLabel
     return InstanceName
 
+
 # Finds the AWS Tag:Name.value in a dict of tags
 def get_tag_name(TAGS):
     # returns the Name|tag:value given an instanceID
@@ -64,14 +75,16 @@ def get_tag_name(TAGS):
     else:
         NameTag = UnNamedLabel
     return NameTag
+
+
 ################################################################################
 # ------------------------------------------------------------------------------
 # Main Function
 # ------------------------------------------------------------------------------
 def lambda_handler(event, context):
     # counting objects tracking vars
-    counter = 0
-    TotalObjects = 0
+    counter = name_counter(0)
+    TotalObjects = name_counter(0)
     ############################################################################
     # --- EBS Volume rename process ---
     ############################################################################
@@ -97,15 +110,15 @@ def lambda_handler(event, context):
                 Volume.create_tags(Tags=VolumesNewName)
             else:
                 print "----> Unttached volume (" + Volume.id + ") named correctly, ('" + VolumeName + "') "
-        counter = name_counter(counter, 'ADD')
-    logging_debug(" volume rename ", "ending", counter)
+        counter.add()
+        TotalObjects.add()
+    logging_debug(" volume rename ", "ending", counter.number )
     ############################################################################
     # --- Interface rename process ---
     ############################################################################
     logging_debug(" interface rename ", "starting", 0)
     NetworkInterfaces = EC2Client.describe_network_interfaces()
-    TotalObjects = counter
-    counter = name_counter(counter, 'RESET')
+    counter.reset()
     for Interface in NetworkInterfaces['NetworkInterfaces']:
         attached = ''
         InterfaceID = Interface['NetworkInterfaceId']
@@ -131,15 +144,15 @@ def lambda_handler(event, context):
         ThisInterface.create_tags(Tags=InterfacesNewName)
         #print interface
         print " ---> [ " + ThisInterface.network_interface_id + " interface has been labeled: " + named + " ] "
-        counter = name_counter(counter, 'ADD')
-    logging_debug(" interface rename ", "ending", counter)
+        counter.add()
+        TotalObjects.add()
+    logging_debug(" interface rename ", "ending", counter.number)
     ############################################################################
     # --- Snapshot labeling process ---
     ############################################################################
     logging_debug(" snapshot labeling ", "starting", 0)
     DescribeAllSnapshots = EC2Client.describe_snapshots(OwnerIds=OIDS)
-    TotalObjects = TotalObjects + counter
-    counter = name_counter(counter, 'RESET')
+    counter.reset()
     for Snapshot in DescribeAllSnapshots['Snapshots']:
         ThisSnapshot = ''
         NewSnapshotName=''
@@ -174,15 +187,15 @@ def lambda_handler(event, context):
             ThisSnapshot.create_tags(Tags=Snapshot_new_name)
         else:
             print "--> Snapshot: " + SnapshotID + " already has a name: " + SnapshotName
-        counter = name_counter(counter, 'ADD')
-    logging_debug(" snapshot labeling ", "ending", counter)
+        counter.add()
+        TotalObjects.add()
+    logging_debug(" snapshot labeling ", "ending", counter.number)
     ############################################################################
     # --- My AMI labeling process ---
     ############################################################################
     logging_debug(" My AMIs labeling ", "starting", 0)
     DescribeAllImages = EC2Client.describe_images(Owners=OIDS)
-    TotalObjects = TotalObjects + counter
-    counter = name_counter(counter, 'RESET')
+    counter.reset()
     for Image in DescribeAllImages['Images']:
         ThisImage = ''
         ImageID = Image['ImageId']
@@ -200,8 +213,8 @@ def lambda_handler(event, context):
             ThisImage.create_tags(Tags=ImageNewName)
         else:
             print "--> AMI " + ImageID + "already has a name - " + ImageName
-        counter = name_counter(counter, 'ADD')
-    logging_debug(" My AMIs labeling ", "ending", counter)
+        counter.add()
+        TotalObjects.add()
+    logging_debug(" My AMIs labeling ", "ending", counter.number)
     ############################################################################
-    TotalObjects = TotalObjects + counter
-    print "[ [ ----->>>>> [ [ [ Processed: " + str(TotalObjects) + " total objects ] ] ] <<<<<----- ] ]"
+    print "[ [ ----->>>>> [ [ [ Processed: " + str(TotalObjects.number) + " total objects ] ] ] <<<<<----- ] ]"
