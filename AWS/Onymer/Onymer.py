@@ -43,10 +43,12 @@ def logging_debug(proc, state, count):
 
 # Iteration counter for naming passes / debugging
 class name_counter:
-        def __init__(self, number):
-                self.number = number
+        def __init__(self):
+                self.number = 0
+                self.total = 0
         def add(self):
-                self.number +=1
+                self.number += 1
+                self.total += 1
         def reset(self):
                 self.number = 0
 
@@ -83,8 +85,7 @@ def get_tag_name(TAGS):
 # ------------------------------------------------------------------------------
 def lambda_handler(event, context):
     # counting objects tracking vars
-    counter = name_counter(0)
-    TotalObjects = name_counter(0)
+    counter = name_counter()
     ############################################################################
     # --- EBS Volume rename process ---
     ############################################################################
@@ -111,7 +112,6 @@ def lambda_handler(event, context):
             else:
                 print "----> Unttached volume (" + Volume.id + ") named correctly, ('" + VolumeName + "') "
         counter.add()
-        TotalObjects.add()
     logging_debug(" volume rename ", "ending", counter.number )
     ############################################################################
     # --- Interface rename process ---
@@ -145,7 +145,6 @@ def lambda_handler(event, context):
         #print interface
         print " ---> [ " + ThisInterface.network_interface_id + " interface has been labeled: " + named + " ] "
         counter.add()
-        TotalObjects.add()
     logging_debug(" interface rename ", "ending", counter.number)
     ############################################################################
     # --- Snapshot labeling process ---
@@ -188,7 +187,6 @@ def lambda_handler(event, context):
         else:
             print "--> Snapshot: " + SnapshotID + " already has a name: " + SnapshotName
         counter.add()
-        TotalObjects.add()
     logging_debug(" snapshot labeling ", "ending", counter.number)
     ############################################################################
     # --- My AMI labeling process ---
@@ -214,7 +212,6 @@ def lambda_handler(event, context):
         else:
             print "--> AMI " + ImageID + "already has a name - " + ImageName
         counter.add()
-        TotalObjects.add()
     logging_debug(" My AMIs labeling ", "ending", counter.number)
     ############################################################################
-    print "[ [ ----->>>>> [ [ [ Processed: " + str(TotalObjects.number) + " total objects ] ] ] <<<<<----- ] ]"
+    print "[ [ ----->>>>> [ [ [ Processed: " + str(counter.total) + " total objects ] ] ] <<<<<----- ] ]"
