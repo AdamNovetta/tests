@@ -25,12 +25,13 @@ S3Object = boto3.resource('s3')
 SNSClient = boto3.client('sns')
 MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
 SNSARN = 'arn:aws:sns:' + EC2RegionName + ':' + MyAWSID + ':AWS_Alerts'
+# IAM
+IAMClient = boto3.client('iam')
 #  -----------------------------------------------------------------------------
 
 
 # IAM client to get the name of this account
 def get_account_name():
-    IAMClient = boto3.client('iam')
     paginator = IAMClient.get_paginator('list_account_aliases')
     for response in paginator.paginate():
         AccountAliases = response['AccountAliases']
@@ -53,6 +54,7 @@ class Render(json.JSONEncoder):
 
 # Get all bucket names
 def get_all_bucket_names():
+    #print(json.dumps(S3Buckets, cls=Render)
     AllBucketNames = []
     for bucket in S3Buckets['Buckets']:
         AllBucketNames.append(bucket['Name'])
@@ -109,7 +111,7 @@ def lambda_handler(event, context):
                             ProblemBuckets += 1
                     if "AuthenticatedUsers" in grants['Grantee'][grantee]:
                         if BucketName not in ReportedBuckets:
-                            ReportedBuckets[BucketName] = "Any AWS user (not just on your account) "
+                            ReportedBuckets[BucketName] = "Any AWS user (not just your account) "
                             ProblemBuckets += 1
     SNSSubject = "AWS Account - " + AccountName + " - S3 Bucket permission report"
     if ProblemBuckets > 0:
