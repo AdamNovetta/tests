@@ -8,7 +8,7 @@ import datetime
 from time import mktime
 from pprint import pprint
 # Program meta -----------------------------------------------------------------
-vers = "1.0"
+vers = "1.2"
 ProgramName = "Canaria"
 #  -----------------------------------------------------------------------------
 # output logging for INFO, to see full output in cloudwatch, default to warning
@@ -124,5 +124,3 @@ def lambda_handler(event, context):
 
     else:
         print "[ No buckeets with open permissions! ]"
-        SNSMessage +=  "Found no buckets with open permissions."
-        SNSClient.publish(TopicArn=SNSARN, Message=SNSMessage, Subject=SNSSubject)
