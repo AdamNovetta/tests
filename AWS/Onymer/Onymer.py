@@ -205,9 +205,9 @@ def lambda_handler(event, context):
         DOB = ThisImage.creation_date
         ImageName = get_tag_name(ImageTags)
         if ImageName.startswith(UnNamedLabel) or len(ImageName) == 0:
-            print "---> [ Labeling Image: " + ImageID + "  with: " + AMI_name + " ]"
+            print "---> [ Labeling Image: " + ImageID + "  with: " + AMIName + " ]"
             print "......currently named: " + ImageName
-            ImageNewName = [{'Key': 'Name','Value': AMI_name}]
+            ImageNewName = [{'Key': 'Name','Value': AMIName}]
             ThisImage.create_tags(Tags=ImageNewName)
         else:
             print "--> AMI " + ImageID + "already has a name - " + ImageName
