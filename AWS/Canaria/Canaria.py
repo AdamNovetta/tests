@@ -8,7 +8,7 @@ import datetime
 from time import mktime
 from pprint import pprint
 # Program meta -----------------------------------------------------------------
-vers = "1.3"
+vers = "1.4"
 ProgramName = "Canaria"
 #  -----------------------------------------------------------------------------
 # output logging for INFO, to see full output in cloudwatch, default to warning
@@ -21,12 +21,6 @@ EC2RegionName = "us-east-1"
 S3Client = boto3.client('s3')
 S3Buckets = S3Client.list_buckets()
 S3Object = boto3.resource('s3')
-# SNS
-SNSClient = boto3.client('sns')
-MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
-SNSARN = 'arn:aws:sns:' + EC2RegionName + ':' + MyAWSID + ':AWS_Alerts'
-# IAM
-IAMClient = boto3.client('iam')
 #  -----------------------------------------------------------------------------
 def call_lambda(lambdaName):
     lambda_client = boto3.client('lambda')
@@ -37,12 +31,13 @@ def call_lambda(lambdaName):
     data = data[1:-1]
     return(data)
 
+def get_account_ID():
+    return(call_lambda(get_account_ID.__name__))
 
-# IAM client to get the name of this account
+# call_lambda function to get the name of this account
 def get_account_name():
     return(call_lambda(get_account_name.__name__))
     
-
 # Render JSON with datestamps correctly
 class Render(json.JSONEncoder):
 
@@ -89,8 +84,10 @@ def bucket_contents(TargetBucket):
 
 # 'Main' function
 def lambda_handler(event, context):
+    MyAWSID = get_account_ID()
+    SNSARN = 'arn:aws:sns:' + EC2RegionName + ':' + MyAWSID + ':AWS_Alerts'
     AccountName = get_account_name()
-    print "Running report on account: " + AccountName
+    print "Running report on account: " + AccountName + " - ID# " + MyAWSID
     ReportedBuckets  = {}
     ProblemBuckets = 0
     SNSMessage = ''
