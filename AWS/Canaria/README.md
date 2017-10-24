@@ -10,7 +10,6 @@ This program alerts an SNS topic to possible insecure configurations. Currently 
    - **Create an IAM role with the following policies attached**:
       - AmazonS3FullAccess
       - AmazonSNSRole
-      - IAMReadOnlyAccess
       - AmazonSNSFullAccess
    - Create an SNS Topic called: **AWS_Alerts** (or if you reuse an existing SNS topic, change the variable **sns_arn** in the script to your topic)
    - Lambda Configuration:
