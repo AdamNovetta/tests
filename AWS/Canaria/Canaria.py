@@ -8,7 +8,7 @@ import datetime
 from time import mktime
 from pprint import pprint
 # Program meta -----------------------------------------------------------------
-vers = "1.2"
+vers = "1.3"
 ProgramName = "Canaria"
 #  -----------------------------------------------------------------------------
 # output logging for INFO, to see full output in cloudwatch, default to warning
@@ -28,19 +28,20 @@ SNSARN = 'arn:aws:sns:' + EC2RegionName + ':' + MyAWSID + ':AWS_Alerts'
 # IAM
 IAMClient = boto3.client('iam')
 #  -----------------------------------------------------------------------------
+def call_lambda(lambdaName):
+    lambda_client = boto3.client('lambda')
+    invoke_response = lambda_client.invoke(FunctionName=lambdaName,
+                                           InvocationType='RequestResponse'
+                                           )
+    data = invoke_response['Payload'].read().decode()
+    data = data[1:-1]
+    return(data)
 
 
 # IAM client to get the name of this account
 def get_account_name():
-    paginator = IAMClient.get_paginator('list_account_aliases')
-    for response in paginator.paginate():
-        AccountAliases = response['AccountAliases']
-    if len(AccountAliases) > 1:
-        AWSAccountName = str("-".join(AccountAliases))
-    else:
-        AWSAccountName = str("".join(AccountAliases))
-    return AWSAccountName
-
+    return(call_lambda(get_account_name.__name__))
+    
 
 # Render JSON with datestamps correctly
 class Render(json.JSONEncoder):
