@@ -31,13 +31,17 @@ def call_lambda(lambdaName):
     data = data[1:-1]
     return(data)
 
+
+# call_lambda function to get the ID of this account
 def get_account_ID():
     return(call_lambda(get_account_ID.__name__))
+
 
 # call_lambda function to get the name of this account
 def get_account_name():
     return(call_lambda(get_account_name.__name__))
     
+
 # Render JSON with datestamps correctly
 class Render(json.JSONEncoder):
 
