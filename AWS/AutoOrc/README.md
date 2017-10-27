@@ -2,9 +2,10 @@
 --------------------------------------------------------------------------------
 
 ## Purpose:
- Shuts down or starts up instances based on the ec2 instance tags:
+ Shuts down or starts up instances and RDS databases based on the tags:
  autoOrc-down and autoOrc-up, and the UTC time value in those tags (ie 13:00)
- 
+
+ v 3.0 - RDS instances that aren't multi-az are now able to be Orc'ed via tags
  V 2.0 - Creates CloudWatch metrics for successful/errored jobs 
 
 ## Usage:
