@@ -31,6 +31,7 @@ def call_lambda(lambdaName):
     data = data[1:-1]
     return(data)
 
+# call_lambda function to get the ID number of this account
 def get_account_ID():
     return(call_lambda(get_account_ID.__name__))
 
