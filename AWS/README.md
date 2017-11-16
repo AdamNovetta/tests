@@ -3,7 +3,7 @@
 
 
 ### AWS/AutoOrc 
- - Auto-starts|stops EC2 instances based on tagging
+ - Auto-starts|stops EC2 instances and RDS instances based on tagging
 ### AWS/Canaria 
  - Auditing and Alerting script(s) for insecure AWS configurations
 ### AWS/Effingo 

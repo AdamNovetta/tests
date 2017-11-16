@@ -1,11 +1,13 @@
-#   AutoOrc - Lambda Function - V 2.0
+#   AutoOrc - Lambda Function - V 3.0
 --------------------------------------------------------------------------------
 
 ## Purpose:
- Shuts down or starts up instances based on the ec2 instance tags:
+ Shuts down or starts up instances and RDS databases based on the tags:
  autoOrc-down and autoOrc-up, and the UTC time value in those tags (ie 13:00)
- 
- V 2.0 - Creates CloudWatch metrics for successful/errored jobs 
+
+ - [x] v 3.0 - RDS instances that aren't multi-az are now able to be Orc'ed via tags
+ - [x] v 2.0 - Creates CloudWatch metrics for successful/errored instances state changes 
+ - [x] v 1.0 - Auto-starts and auto-stops instances based on tags
 
 ## Usage:
 - Setup a 1 minute interval cloudwatch event (cron trigger) and create the
