@@ -1,26 +1,45 @@
 #!/usr/bin/env python
-# tools needed
 import json
 import boto3
 import logging
 import time
 import datetime
-# output logging for INFO, to see full output in cloudwatch, default to warning
+
+
+# Output logging - default WARNING. Set to INFO for full output in cloudwatch
 logger = logging.getLogger()
 logger.setLevel(logging.WARNING)
-# output spacer
-ls = " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - "
-# Program meta ----------------------------------------------------------------
+
+
+# Program meta
 vers = "3.0"
 ProgramName = "AutoOrc"
-#  ----------------------------------------------------------------------------
-# define the connection, replace region if your instances aren't in this region
+ls = " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - "
+
+
+# define boto3 connections/variables
 region = 'us-east-1'
 ec2 = boto3.resource('ec2', region_name=region)
 cw = boto3.client('cloudwatch')
 rds = boto3.client('rds')
 UnNamedLabel = "no name?"
-MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
+LClient = boto3.client('lambda')
+
+
+def LR(function_name, payload=None):
+
+    if payload != None:
+        pload = { "FunctionName": function_name, "FunctionPayload": payload }
+    else:
+        pload = { "FunctionName": function_name }
+
+    LambdaRelayOutput = LClient.invoke(
+            FunctionName='lambda_function_relay',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(pload)
+            )
+    data = LambdaRelayOutput['Payload'].read().decode()
+    return(data)
 
 
 # Setup cloudwatch alerts for instances
@@ -43,19 +62,6 @@ def putCloudWatchMetric(metricName, value, process, outcome):
     )
 
 
-# function to return name of instances for an instance ID
-def get_instance_name(ec2id):
-    EC2Instance = ec2.Instance(ec2id)
-    InstanceName = ''
-    if EC2Instance.tags is not None:
-        for tags in EC2Instance.tags:
-            if tags["Key"] == 'Name':
-                InstanceName = tags["Value"]
-    else:
-        InstanceName = UnNamedLabel
-    return InstanceName
-
-
 # function to get AutoOrc-down / AutoOrc-up tags
 def get_rds_orc_tags(ARN, phase):
     OrcTimer = ''
@@ -63,16 +69,17 @@ def get_rds_orc_tags(ARN, phase):
     for tag in tags['TagList']:
         if tag['Key'] == phase:
             OrcTimer = tag['Value']
-    return OrcTimer        
+    return OrcTimer
 
-            
-# main function, that lambda calls
+
+# Main function, that lambda calls
 def lambda_handler(event, context):
+    MyAWSID = LR("get_account_ID")[1:-1]
     # set variable to figure out what day of the week it is
     d = datetime.datetime.now()
     # define timer, used to gague shutdown time
     timer = time.strftime("%H:%M")
-    print ls + "\n[ Orc routine start time : " + timer + " ]"
+    print(ls + "\n[ AutoOrc routine start time : " + timer + " ]")
     # set base filters for running/stopped instances, and matching orc tags
     FilterRunning = [
         {'Name': 'instance-state-name','Values': ['running']},
@@ -92,20 +99,22 @@ def lambda_handler(event, context):
     for instance in OrcInstances:
         counter += 1
         StateCode = 0
-        name = get_instance_name(instance.id)
+        name = LR("get_instance_name", {"Region": region,"EC2ID": instance.id})
         # Print the instances stopping for logging purposes
-        print "---> Shutting down instance: "
-        print(instance.id) + " [ Name : " + name + " ] "
+        print("---> Shutting down instance: ")
+        print(instance.id + " [ Name : " + name + " ] ")
         response = instance.stop()
         StateCode = response['StoppingInstances'][0]['CurrentState']['Code']
         # print "Instance " + name + " status code: " + str(StateCode)
         if StateCode == 16:
             ErrorCounter += 1
-            print "error stopping " + name + ", error code: " + str(StateCode)
+            print( "error stopping " + name + ", error code: " + str(StateCode))
     if (counter > 0):
         putCloudWatchMetric(MyAWSID, counter, 'autoOrc-down', 'Success')
     if (ErrorCounter > 0):
-        putCloudWatchMetric(MyAWSID, ErrorCounter, 'autoOrc-down', 'Error')  
+        putCloudWatchMetric(MyAWSID, ErrorCounter, 'autoOrc-down', 'Error')
+        print(" x - Errored while stopping " + str(counter) + " instances")
+    print(" - Stopped " + str(counter) + " instances")
     # determine all stopped instances and filter for the orc up tag
     OrcInstancesUp = ec2.instances.filter(Filters=FilterStopped)
     counter = 0
@@ -118,20 +127,22 @@ def lambda_handler(event, context):
             StateCode = 0
             name = get_instance_name(instance.id)
             # Print the instances starting for logging purposes
-            print "---> Starting instance: "
-            print(instance.id) + " [ Name : " + name + " ] "
+            print( "---> Starting instance: ")
+            print(instance.id + " [ Name : " + name + " ] ")
             response = instance.start()
             StateCode = response['StartingInstances'][0]['CurrentState']['Code']
             # print "Instance " + name + " status code: " + str(StateCode)
             if StateCode in BadStartCodes:
                 ErrorCounter += 1
-                print "error starting " + name + ", code: " + str(StateCode)
+                print( " Error starting " + name + ", code: " + str(StateCode))
         if (counter > 0):
             putCloudWatchMetric(MyAWSID, counter, 'autoOrc-up', 'Success')
         if (ErrorCounter > 0):
             putCloudWatchMetric(MyAWSID, ErrorCounter, 'autoOrc-up', 'Error')
+            print(" x - Errored while starting " + str(counter) + " instances")
+    print(" - Started " + str(counter) + " instances")
     # Cycle through all RDS instaces, starting Orc tagged ones on weekdays
-    # stopping all instances if timer tag is (now)        
+    # stopping all instances if timer tag is (now)
     for RDSInstance in OrcDBs['DBInstances']:
         RDSName = str(RDSInstance['DBInstanceIdentifier'])
         RDSARN = str(RDSInstance['DBInstanceArn'])
@@ -147,6 +158,6 @@ def lambda_handler(event, context):
             orc_down = get_rds_orc_tags(RDSARN, "autoOrc-down")
             if orc_down == timer:
                 print("RDS : " + RDSName + " database is shutting down now")
-                rds.stop_db_instance(DBInstanceIdentifier=RDSName)  
-                                         
-    print "[ Orc routine finished ]\n" + ls
+                rds.stop_db_instance(DBInstanceIdentifier=RDSName)
+
+    print( "[ AutoOrc routine finished ]\n" + ls)
