@@ -1,32 +1,39 @@
 #!/usr/bin/env python
-# tools needed
 import json
 import boto3
 import logging
 import time
 import datetime
-################################################################################
+
+
 # Program meta -----------------------------------------------------------------
 vers = "4.1"
 ProgramName = "Onymer"
+
 # AWS assumptions --------------------------------------------------------------
 region = "us-east-1"
-# functions to connect to AWS API
+
+
+# Define boto3 connections/variables
 ec2 = boto3.resource("ec2", region_name=region)
 EC2Client = boto3.client('ec2')
+
+
 # Getting the Account ID needed to filter snapshots/AMIs
 MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
 OIDS = [MyAWSID]
+
+
 # Label being applied to anything not named and no longer attached, feel free to change
 UnattachedLabel = "- UNATTACHED - "
+
+
 # Used as a temp variable to identify things without names, change to whatever
 UnNamedLabel = "(no name)"
+
+
 # Don't touch these unless Amazon changes their labeling on marketplace snapshots!
 GenericSnapshot = "Created"
-################################################################################
-# ------------------------------------------------------------------------------
-# Support Functions
-# ------------------------------------------------------------------------------
 
 
 # debug helper, has nothing to do with actual renaming process
@@ -79,16 +86,11 @@ def get_tag_name(TAGS):
     return NameTag
 
 
-################################################################################
-# ------------------------------------------------------------------------------
-# Main Function
-# ------------------------------------------------------------------------------
+# Main function
 def lambda_handler(event, context):
     # counting objects tracking vars
     counter = name_counter()
-    ############################################################################
-    # --- EBS Volume rename process ---
-    ############################################################################
+    # EBS renaming process
     logging_debug(" volume rename ", "starting", 0)
     for Volume in ec2.volumes.all():
         VolumeName = get_tag_name(Volume.tags)
@@ -113,9 +115,7 @@ def lambda_handler(event, context):
                 print "----> Unttached volume (" + Volume.id + ") named correctly, ('" + VolumeName + "') "
         counter.add()
     logging_debug(" volume rename ", "ending", counter.number )
-    ############################################################################
-    # --- Interface rename process ---
-    ############################################################################
+    # Network Interface rename process
     logging_debug(" interface rename ", "starting", 0)
     NetworkInterfaces = EC2Client.describe_network_interfaces()
     counter.reset()
@@ -142,13 +142,11 @@ def lambda_handler(event, context):
             named = UnattachedLabel
         InterfacesNewName = [{'Key': 'Name','Value': named}]
         ThisInterface.create_tags(Tags=InterfacesNewName)
-        #print interface
+        # Print interface
         print " ---> [ " + ThisInterface.network_interface_id + " interface has been labeled: " + named + " ] "
         counter.add()
     logging_debug(" interface rename ", "ending", counter.number)
-    ############################################################################
-    # --- Snapshot labeling process ---
-    ############################################################################
+    # Snapshot labeling process
     logging_debug(" snapshot labeling ", "starting", 0)
     DescribeAllSnapshots = EC2Client.describe_snapshots(OwnerIds=OIDS)
     counter.reset()
@@ -188,9 +186,7 @@ def lambda_handler(event, context):
             print "--> Snapshot: " + SnapshotID + " already has a name: " + SnapshotName
         counter.add()
     logging_debug(" snapshot labeling ", "ending", counter.number)
-    ############################################################################
-    # --- My AMI labeling process ---
-    ############################################################################
+    # AMI labeling process
     logging_debug(" My AMIs labeling ", "starting", 0)
     DescribeAllImages = EC2Client.describe_images(Owners=OIDS)
     counter.reset()
@@ -213,5 +209,5 @@ def lambda_handler(event, context):
             print "--> AMI " + ImageID + "already has a name - " + ImageName
         counter.add()
     logging_debug(" My AMIs labeling ", "ending", counter.number)
-    ############################################################################
+    # End reporting process
     print "[ [ ----->>>>> [ [ [ Processed: " + str(counter.total) + " total objects ] ] ] <<<<<----- ] ]"

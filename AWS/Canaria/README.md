@@ -26,6 +26,8 @@ This program alerts an SNS topic to possible insecure configurations. Currently 
             * KMS key : default
 
 ##### Releases:
-    v1.0 - Checks S3 buckets for insecure connections
+    v3.0 - Utilizing Lambda Relay function to process some calls
+    v2.0 - Checks S3 buckets contents for insecure permissions
+    v1.0 - Checks S3 buckets for insecure permissions
 
 ######  p.s. - comment out (or uncomment) print lines to alter logging output

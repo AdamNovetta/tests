@@ -2,15 +2,18 @@
 # tools needed
 import boto3
 import calendar
-import tiime
+import time
 import sys
 import logging
 from datetime import datetime
-# Program meta -----------------------------------------------------------------
+
+
+# Program meta
 vers = "1.0"
 ProgramName = "Effingo"
-#  -----------------------------------------------------------------------------
-# output logging for INFO, to see full output in cloudwatch, default to warning
+
+
+# Output logging - default WARNING. Set to INFO for full output in cloudwatch
 logger = logging.getLogger()
 logger.setLevel(logging.WARNING)
 
@@ -97,14 +100,9 @@ def get_tag_name(TAGS):
 # Main function of the script
 def lambda_handler(event, context):
     # Message to return result via SNS
-    message = ""
-    errmsg = ""
+    message = errmsg = ""
     # Counters
-    TotalCreates = 0
-    TotalDeletes = 0
-    CountErrors = 0
-    CountSuccess = 0
-    CountTotal = 0
+    TotalCreates = TotalDeletes = CountErrors = CountSuccess = CountTotal = 0
     passes = 0
     # Number of snapshots to keep (the older ones are going to be deleted)
     KeepWeek = 5
