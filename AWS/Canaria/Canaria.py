@@ -196,4 +196,4 @@ def lambda_handler(event, context):
                         Subject=SNSSubject
                         )
     else:
-        print("[ No buckets with open permissions! ]")
+print("[ No buckets with open permissions! ]")
