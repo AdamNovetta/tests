@@ -20,84 +20,23 @@ logger.setLevel(logging.WARNING)
 
 # Define boto3 connections/variables
 EC2RegionName = "us-east-1"
-S3Client = boto3.client('s3')
-S3Buckets = S3Client.list_buckets()
+LClient = boto3.client('lambda')
 
 
-class call_lambda:
+def LR(function_name, payload=None):
 
-    lambda_client = boto3.client('lambda')
+    if payload != None:
+        pload = { "FunctionName": function_name, "FunctionPayload": payload }
+    else:
+        pload = { "FunctionName": function_name }
 
-    # Defines Lambda call that doesn't have a payload attached
-    def no_input(self, function_name):
-        invoke_response = call_lambda().lambda_client.invoke(
-                                            FunctionName=function_name,
-                                            InvocationType='RequestResponse',
-                                            )
-        data = invoke_response['Payload'].read().decode()[1:-1]
-        return(data)
-
-
-    # Defines Lambda call that includes a payload
-    def payloaded_input(self, function_name, payload):
-        invoke_response = call_lambda().lambda_client.invoke(
-                                            FunctionName=function_name,
-                                            InvocationType='RequestResponse',
-                                            Payload=json.dumps(payload)
-                                            )
-        data = invoke_response['Payload'].read().decode()
-        return(data)
-
-
-    # Call Lambda to get the account ID
-    def get_account_ID(self):
-        fname = inspect.stack()[0][3]
-        data = call_lambda().no_input(function_name=fname)
-        return data
-
-
-    # Call Lambda to get the name of the account
-    def get_account_name(self):
-        fname = inspect.stack()[0][3]
-        data = call_lambda().no_input(function_name=fname)
-        return data
-
-
-    # Call lambda to get buckets with open permissions
-    def get_open_s3_bucket_permissions(self, bucket):
-        pload = { 'BucketName' : bucket }
-        fname = inspect.stack()[0][3]
-        data = call_lambda().payloaded_input(
-                                function_name=fname,
-                                payload=pload
-                                )
-        return data
-
-
-    # Call Lambda to get objects in 'bucket' that have open permissions
-    def get_open_s3_object_permissions(self, bucket):
-        pload = { 'BucketName' : bucket }
-        fname = inspect.stack()[0][3]
-        data = call_lambda().payloaded_input(
-                                function_name=fname,
-                                payload=pload
-                                )
-        return data
-
-
-    # Call lambda to send an SNS message
-    def send_sns_message(self, ARN, Message, Subject):
-        pload = {
-                'SNSARN' : ARN,
-                'SNSMessage' : Message,
-                'SNSSubject' : Subject
-                }
-        fname = inspect.stack()[0][3]
-        data = call_lambda().payloaded_input(
-                                function_name=fname,
-                                payload=pload
-                                )
-        return data
+    LambdaRelayOutput = LClient.invoke(
+            FunctionName='lambda_function_relay',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(pload)
+            )
+    data = LambdaRelayOutput['Payload'].read().decode()
+    return(data)
 
 
 # Render JSON with datestamps correctly
@@ -110,36 +49,17 @@ class Render(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-# Get all bucket names
-def get_all_bucket_names():
-    AllBucketNames = []
-    for bucket in S3Buckets['Buckets']:
-        AllBucketNames.append(bucket['Name'])
-    return AllBucketNames
-
-
-# Attempt to connect to S3 bucket
-def connect_to_bucket(target):
-    try:
-        S3Client.head_bucket(Bucket=target)
-        viewable = True
-    except:
-        viewable = False
-    return viewable
-
-
 # Check the permissions of a bucket and its contents
 def scan_bucket(bucket):
     BucketOutput= {}
     ParsedData = ''
     ProblemFiles=ProblemBuckets= 0
-
-    bucket_check = call_lambda().get_open_s3_bucket_permissions(bucket)
+    bucket_check = LR("get_open_s3_bucket_permissions", {'BucketName': bucket })
     if bucket_check != "null":
-        BucketCheck = json.loads(bucket_check)
+        BucketCheck = str(bucket_check[1:-1])
         ParsedData += "\n- " + str(BucketCheck) + " can access whole bucket!"
         BucketOutput['ProblemBuckets'] = 1
-    bucket_data = call_lambda().get_open_s3_object_permissions(bucket)
+    bucket_data = LR("get_open_s3_object_permissions", {'BucketName': bucket })
     if bucket_data != "null":
         BucketData = json.loads(bucket_data)
         for Issue in BucketData:
@@ -159,14 +79,14 @@ def lambda_handler(event, context):
     SNSMessage = ''
     ReportedBuckets = {}
     ProblemBuckets=ProblemFiles=Errors= 0
-    MyAWSID = call_lambda().get_account_ID()
-    AccountName = call_lambda().get_account_name()
+    MyAWSID = LR("get_account_ID")[1:-1]
+    AccountName = LR("get_account_name")[1:-1]
     SNSARN = 'arn:aws:sns:' + EC2RegionName + ':' + MyAWSID + ':AWS_Alerts'
     print("Running report on account: " + AccountName + " - ID# " + MyAWSID)
-    MyBuckets = get_all_bucket_names()
+    MyBuckets = json.loads(LR("get_all_s3_bucket_names"))
     for BucketName in MyBuckets:
-        result = connect_to_bucket(BucketName)
-        if result == True:
+        result = LR("connect_to_s3_bucket", {'BucketName': BucketName })
+        if result == "true":
             ScanResults = scan_bucket(BucketName)
             if ScanResults:
                 if 'ProblemBuckets' in ScanResults:
@@ -175,12 +95,12 @@ def lambda_handler(event, context):
                     ProblemFiles += ScanResults['ProblemFiles']
                 if 'Issues' in ScanResults:
                     ReportedBuckets[BucketName] = ScanResults['Issues']
-        if result == False:
+        if result == "false":
             ReportedBuckets[BucketName] = "\n- Not scannable via Lambda checks"
             Errors += 1
     SNSSubject = "AWS Account: " + AccountName + " - S3 Permissions Report"
     if ProblemBuckets or ProblemFiles or Errors > 0:
-        print(ReportedBuckets)
+        print(json.dumps(ReportedBuckets))
         for rp in ReportedBuckets:
             SNSMessage += "\nBucket:  [ " + rp + " ]  \nIssues: "
             SNSMessage += str(ReportedBuckets[rp]) + "\n"
@@ -190,10 +110,10 @@ def lambda_handler(event, context):
         SNSMessage += str(ProblemBuckets) + "\n"
         SNSMessage +=  "\nTotal errors: "
         SNSMessage += str(Errors) + "\n"
-        call_lambda().send_sns_message(
-                        ARN=SNSARN,
-                        Message=SNSMessage,
-                        Subject=SNSSubject
-                        )
+        LR("send_sns_message", {
+                                    'SNSARN' : SNSARN,
+                                    'SNSMessage' : SNSMessage,
+                                    'SNSSubject' : SNSSubject
+                                })
     else:
-print("[ No buckets with open permissions! ]")
+        print("[ No buckets with open permissions! ]")
