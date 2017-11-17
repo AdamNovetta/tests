@@ -9,7 +9,7 @@ from time import mktime
 
 
 # Program meta
-vers = "2.0"
+vers = "3.1"
 ProgramName = "Canaria"
 
 
