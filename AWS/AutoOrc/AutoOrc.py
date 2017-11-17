@@ -99,7 +99,10 @@ def lambda_handler(event, context):
     for instance in OrcInstances:
         counter += 1
         StateCode = 0
-        name = LR("get_instance_name", {"Region": region,"EC2ID": instance.id})
+        name = LR("get_ec2_instance_name", {
+                                                "Region": region,
+                                                "EC2ID": instance.id
+                                            })
         # Print the instances stopping for logging purposes
         print("---> Shutting down instance: ")
         print(instance.id + " [ Name : " + name + " ] ")
@@ -125,7 +128,10 @@ def lambda_handler(event, context):
         for instance in OrcInstancesUp:
             counter += 1
             StateCode = 0
-            name = get_instance_name(instance.id)
+            name = LR("get_ec2_instance_name", {
+                                                    "Region": region,
+                                                    "EC2ID": instance.id
+                                                })
             # Print the instances starting for logging purposes
             print( "---> Starting instance: ")
             print(instance.id + " [ Name : " + name + " ] ")
