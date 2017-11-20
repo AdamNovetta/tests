@@ -14,6 +14,7 @@ logger.setLevel(logging.WARNING)
 # Program meta
 vers = "3.0"
 ProgramName = "AutoOrc"
+Desc = "Auto stops and starts EC2 Instances/RDS instances bass on tags"
 ls = " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - "
 
 
@@ -79,7 +80,7 @@ def lambda_handler(event, context):
     d = datetime.datetime.now()
     # define timer, used to gague shutdown time
     timer = time.strftime("%H:%M")
-    print(ls + "\n[ AutoOrc routine start time : " + timer + " ]")
+    print(ls + "\n[ AutoOrc routine start time : " + timer + region + " ]")
     # set base filters for running/stopped instances, and matching orc tags
     FilterRunning = [
         {'Name': 'instance-state-name','Values': ['running']},
@@ -93,8 +94,7 @@ def lambda_handler(event, context):
     # determine all running instances and filter for the orc up tag
     OrcInstances = ec2.instances.filter(Filters=FilterRunning)
     OrcDBs = rds.describe_db_instances()
-    counter = 0
-    ErrorCounter = 0
+    counter = ErrorCounter = 0
     # AutoOrc down EC2 Instances
     for instance in OrcInstances:
         counter += 1
@@ -120,8 +120,7 @@ def lambda_handler(event, context):
     print(" - Stopped " + str(counter) + " instances")
     # determine all stopped instances and filter for the orc up tag
     OrcInstancesUp = ec2.instances.filter(Filters=FilterStopped)
-    counter = 0
-    ErrorCounter = 0
+    counter = ErrorCounter = 0
     BadStartCodes = ['32', '48', '64', '80']
     # check to make sure we're only starting stuff on weekdays
     if d.isoweekday() in range(1, 6):
@@ -166,4 +165,4 @@ def lambda_handler(event, context):
                 print("RDS : " + RDSName + " database is shutting down now")
                 rds.stop_db_instance(DBInstanceIdentifier=RDSName)
 
-    print( "[ AutoOrc routine finished ]\n" + ls)
+    print( "[ AutoOrc routine finished " +region + " ]\n" + ls)

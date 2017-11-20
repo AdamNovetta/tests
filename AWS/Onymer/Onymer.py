@@ -9,30 +9,40 @@ import datetime
 # Program meta -----------------------------------------------------------------
 vers = "4.1"
 ProgramName = "Onymer"
-
-# AWS assumptions --------------------------------------------------------------
-region = "us-east-1"
-
+Desc = "Tags/Names EC2 assests (AMIs/EBSs/IFs/Snaps) based on EC2 Instance name"
 
 # Define boto3 connections/variables
+region = "us-east-1"
 ec2 = boto3.resource("ec2", region_name=region)
 EC2Client = boto3.client('ec2')
+LClient = boto3.client('lambda')
 
+
+def LR(function_name, payload=None):
+
+    if payload != None:
+        pload = { "FunctionName": function_name, "FunctionPayload": payload }
+    else:
+        pload = { "FunctionName": function_name }
+
+    LambdaRelayOutput = LClient.invoke(
+            FunctionName='lambda_function_relay',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(pload)
+            )
+    data = LambdaRelayOutput['Payload'].read().decode()
+    return(data)
 
 # Getting the Account ID needed to filter snapshots/AMIs
-MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
+MyAWSID = LR("get_account_ID")[1:-1]
 OIDS = [MyAWSID]
 
 
-# Label being applied to anything not named and no longer attached, feel free to change
+# Label applied to anything not named and un-attached
 UnattachedLabel = "- UNATTACHED - "
-
-
-# Used as a temp variable to identify things without names, change to whatever
+# Used as a temp variable to identify things without names
 UnNamedLabel = "(no name)"
-
-
-# Don't touch these unless Amazon changes their labeling on marketplace snapshots!
+# Don't touch this unless AWS changes their labeling on marketplace snapshots!
 GenericSnapshot = "Created"
 
 
@@ -41,11 +51,15 @@ def logging_debug(proc, state, count):
     logger = logging.getLogger()
     # set below to DEBUG or other to see more errors in event log/console
     logger.setLevel(logging.WARNING)
-    d = ''
+    endoutput = output = d = ''
     d = datetime.datetime.now()
-    print "[ > | - " + ProgramName + " - " + vers + " | ---> " + state + proc + " process <--- @ " + str(d) + " < ]"
+    output = "[ > | - " + ProgramName + " - " + vers + " | ---> " + state + proc
+    output += " process <--- @ " + str(d) + " < ]"
+    print(output)
     if "ending" in state:
-        print "[ <!> ____ Processed: " + str(count) + " objects while running " + proc + " task _____ <!> ]"
+        endoutput = "[ <!> ____ Processed: " + str(count)
+        endoutput += " objects while running " + proc + " task _____ <!> ]"
+        print(endoutput)
 
 
 # Iteration counter for naming passes / debugging
@@ -58,19 +72,6 @@ class name_counter:
                 self.total += 1
         def reset(self):
                 self.number = 0
-
-
-# returns the instance Name|tag:value given an instanceID
-def get_instance_name(ec2id):
-    EC2Instance = ec2.Instance(ec2id)
-    InstanceName = ''
-    if EC2Instance.tags is not None:
-        for tags in EC2Instance.tags:
-            if tags["Key"] == 'Name':
-                InstanceName = tags["Value"]
-    else:
-        InstanceName = UnNamedLabel
-    return InstanceName
 
 
 # Finds the AWS Tag:Name.value in a dict of tags
@@ -93,26 +94,29 @@ def lambda_handler(event, context):
     # EBS renaming process
     logging_debug(" volume rename ", "starting", 0)
     for Volume in ec2.volumes.all():
-        VolumeName = get_tag_name(Volume.tags)
+        VolumeName = LR("get_name_tag", { "Tags" : Volume.tags })[1:-1]
         if Volume.state == 'in-use':
             InstanceID = Volume.attachments[0]['InstanceId']
             InstanceMount = Volume.attachments[0]['Device']
-            InstanceName =  get_instance_name(InstanceID)
+            InstanceName = LR("get_ec2_instance_name", {
+                                                    "Region": region,
+                                                    "EC2ID": InstanceID
+                                                })[1:-1]
             NewVolumeName = "[ " + InstanceName + " ]-" + InstanceMount
             VolumesNewName = [{'Key': 'Name','Value': NewVolumeName}]
             if VolumeName != NewVolumeName:
-                print "-- [ Attached volume (" + Volume.id + ") re-named: " + NewVolumeName + " ] --"
+                print("-- [ Attached volume (" + Volume.id + ") re-named: " + NewVolumeName + " ] --")
                 Volume.create_tags(Tags=VolumesNewName)
             else:
-                print "--> Attached volume (" + Volume.id + ") named correctly, ('" + VolumeName + "') "
+                print("--> Attached volume (" + Volume.id + ") named correctly, ('" + VolumeName + "') ")
         if Volume.state == 'available':
             NewVolumeName = UnattachedLabel + VolumeName
             VolumesNewName = [{'Key': 'Name','Value': NewVolumeName}]
             if not VolumeName.startswith('- UNATTACHED -'):
-                print "---- [ Unattached volume re-named: " + NewVolumeName + " ] ----"
+                print("---- [ Unattached volume re-named: " + NewVolumeName + " ] ----")
                 Volume.create_tags(Tags=VolumesNewName)
             else:
-                print "----> Unttached volume (" + Volume.id + ") named correctly, ('" + VolumeName + "') "
+                print("----> Unttached volume (" + Volume.id + ") named correctly, ('" + VolumeName + "') ")
         counter.add()
     logging_debug(" volume rename ", "ending", counter.number )
     # Network Interface rename process
@@ -120,17 +124,19 @@ def lambda_handler(event, context):
     NetworkInterfaces = EC2Client.describe_network_interfaces()
     counter.reset()
     for Interface in NetworkInterfaces['NetworkInterfaces']:
-        attached = ''
+        attached = ThisInterface = ''
         InterfaceID = Interface['NetworkInterfaceId']
         named = "[ no attachment status? ]"
-        ThisInterface = ''
         ThisInterface = ec2.NetworkInterface(InterfaceID)
         attached = ThisInterface.status
         if attached == "in-use":
             if 'InstanceId' in ThisInterface.attachment:
                 attached_instance = ThisInterface.attachment['InstanceId']
                 if attached_instance is not None:
-                    named = get_instance_name(attached_instance)
+                    named = LR("get_ec2_instance_name", {
+                                                            "Region": region,
+                                                            "EC2ID": InstanceID
+                                                        })
                 else:
                     named = "No-Instance-ID"
             else:
@@ -143,7 +149,7 @@ def lambda_handler(event, context):
         InterfacesNewName = [{'Key': 'Name','Value': named}]
         ThisInterface.create_tags(Tags=InterfacesNewName)
         # Print interface
-        print " ---> [ " + ThisInterface.network_interface_id + " interface has been labeled: " + named + " ] "
+        print(" ---> [ " + ThisInterface.network_interface_id + " interface has been labeled: " + named + " ] ")
         counter.add()
     logging_debug(" interface rename ", "ending", counter.number)
     # Snapshot labeling process
@@ -151,8 +157,7 @@ def lambda_handler(event, context):
     DescribeAllSnapshots = EC2Client.describe_snapshots(OwnerIds=OIDS)
     counter.reset()
     for Snapshot in DescribeAllSnapshots['Snapshots']:
-        ThisSnapshot = ''
-        NewSnapshotName=''
+        ThisSnapshot = NewSnapshotName = ''
         SnapshotID = Snapshot['SnapshotId']
         ThisSnapshot = ec2.Snapshot(SnapshotID)
         SnapshotOwner = ThisSnapshot.owner_id
@@ -170,20 +175,20 @@ def lambda_handler(event, context):
                         try:
                             NewSnapshotName = get_tag_name(ec2.Volume(SnapshotVolume).tags)
                         except:
-                            print "{ No volume with ID [" + SnapshotVolume +"] exists! }"
+                            print("{ No volume with ID [" + SnapshotVolume +"] exists! }")
                             NewSnapshotName = "Old-" + SnapshotVolume + "-Snapshot-" + Dob
-                        print "---> [ Labeling Snapshot: " + SnapshotID + " with: " + NewSnapshotName + " , as its new name tag ]"
+                        print("---> [ Labeling Snapshot: " + SnapshotID + " with: " + NewSnapshotName + " , as its new name tag ]")
                 else:
                     NewSnapshotName = "CreateImage" + SnapshotVolume + "-Snapshot-" + Dob
-                    print "---> [ Labeling Snapshot: " + SnapshotID + " : " + NewSnapshotName + " ]"
+                    print("---> [ Labeling Snapshot: " + SnapshotID + " : " + NewSnapshotName + " ]")
             else:
                 NewSnapshotName = Desc
-            print "---> [ Labeling Snapshot: " + SnapshotID + " : " + Desc + " ]"
-            print "......currently named: " + SnapshotName + ", described as: " + Desc
+            print("---> [ Labeling Snapshot: " + SnapshotID + " : " + Desc + " ]")
+            print("......currently named: " + SnapshotName + ", described as: " + Desc)
             Snapshot_new_name = [{'Key': 'Name','Value': NewSnapshotName}]
             ThisSnapshot.create_tags(Tags=Snapshot_new_name)
         else:
-            print "--> Snapshot: " + SnapshotID + " already has a name: " + SnapshotName
+            print("--> Snapshot: " + SnapshotID + " already has a name: " + SnapshotName)
         counter.add()
     logging_debug(" snapshot labeling ", "ending", counter.number)
     # AMI labeling process
@@ -201,13 +206,13 @@ def lambda_handler(event, context):
         DOB = ThisImage.creation_date
         ImageName = get_tag_name(ImageTags)
         if ImageName.startswith(UnNamedLabel) or len(ImageName) == 0:
-            print "---> [ Labeling Image: " + ImageID + "  with: " + AMIName + " ]"
-            print "......currently named: " + ImageName
+            print("---> [ Labeling Image: " + ImageID + "  with: " + AMIName + " ]")
+            print("......currently named: " + ImageName)
             ImageNewName = [{'Key': 'Name','Value': AMIName}]
             ThisImage.create_tags(Tags=ImageNewName)
         else:
-            print "--> AMI " + ImageID + "already has a name - " + ImageName
+            print("--> AMI " + ImageID + "already has a name - " + ImageName)
         counter.add()
     logging_debug(" My AMIs labeling ", "ending", counter.number)
     # End reporting process
-    print "[ [ ----->>>>> [ [ [ Processed: " + str(counter.total) + " total objects ] ] ] <<<<<----- ] ]"
+    print("[ [ ----->>>>> [ [ [ Processed: " + str(counter.total) + " total objects ] ] ] <<<<<----- ] ]")
