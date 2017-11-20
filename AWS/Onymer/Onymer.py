@@ -6,7 +6,7 @@ import time
 import datetime
 
 
-# Program meta -----------------------------------------------------------------
+# Program meta
 vers = "4.1"
 ProgramName = "Onymer"
 Desc = "Tags/Names EC2 assests (AMIs/EBSs/IFs/Snaps) based on EC2 Instance name"
