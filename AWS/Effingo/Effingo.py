@@ -9,7 +9,7 @@ from datetime import datetime
 
 
 # Program meta
-vers = "1.0"
+vers = "1.2"
 ProgramName = "Effingo"
 Desc = "Takes Daily/Weekly/Monthly snapshots of EBS volumes"
 

@@ -24,6 +24,7 @@ TODO: Add an IAM policy example/template
             * KMS key : default
 
 ##### Releases:
+    v1.2 - Cleaned up code and utilizing lambda relay function
     v1.0 - Creates a snapshot based on the EBS volumes tag
 
 ######  p.s. - comment out (or uncomment) print lines to alter logging output
