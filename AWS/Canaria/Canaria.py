@@ -9,7 +9,7 @@ from time import mktime
 
 
 # Program meta
-vers = "3.1"
+vers = "3.2"
 ProgramName = "Canaria"
 
 
@@ -25,10 +25,10 @@ LClient = boto3.client('lambda')
 
 def LR(function_name, payload=None):
 
-    if payload != None:
-        pload = { "FunctionName": function_name, "FunctionPayload": payload }
+    if payload is not None:
+        pload = {"FunctionName": function_name, "FunctionPayload": payload}
     else:
-        pload = { "FunctionName": function_name }
+        pload = {"FunctionName": function_name}
 
     LambdaRelayOutput = LClient.invoke(
             FunctionName='lambda_function_relay',
@@ -51,15 +51,15 @@ class Render(json.JSONEncoder):
 
 # Check the permissions of a bucket and its contents
 def scan_bucket(bucket):
-    BucketOutput= {}
+    BucketOutput = {}
     ParsedData = ''
-    ProblemFiles=ProblemBuckets= 0
-    bucket_check = LR("get_open_s3_bucket_permissions", {'BucketName': bucket })
+    ProblemFiles = ProblemBuckets = 0
+    bucket_check = LR("get_open_s3_bucket_permissions", {'BucketName': bucket})
     if bucket_check != "null":
         BucketCheck = str(bucket_check[1:-1])
         ParsedData += "\n- " + str(BucketCheck) + " can access whole bucket!"
         BucketOutput['ProblemBuckets'] = 1
-    bucket_data = LR("get_open_s3_object_permissions", {'BucketName': bucket })
+    bucket_data = LR("get_open_s3_object_permissions", {'BucketName': bucket})
     if bucket_data != "null":
         BucketData = json.loads(bucket_data)
         for Issue in BucketData:
@@ -78,14 +78,14 @@ def scan_bucket(bucket):
 def lambda_handler(event, context):
     SNSMessage = ''
     ReportedBuckets = {}
-    ProblemBuckets=ProblemFiles=Errors= 0
+    ProblemBuckets = ProblemFiles = Errors = 0
     MyAWSID = LR("get_account_ID")[1:-1]
     AccountName = LR("get_account_name")[1:-1]
     SNSARN = 'arn:aws:sns:' + EC2RegionName + ':' + MyAWSID + ':AWS_Alerts'
     print("Running report on account: " + AccountName + " - ID# " + MyAWSID)
     MyBuckets = json.loads(LR("get_all_s3_bucket_names"))
     for BucketName in MyBuckets:
-        result = LR("connect_to_s3_bucket", {'BucketName': BucketName })
+        result = LR("connect_to_s3_bucket", {'BucketName': BucketName})
         if result == "true":
             ScanResults = scan_bucket(BucketName)
             if ScanResults:
@@ -104,16 +104,16 @@ def lambda_handler(event, context):
         for rp in ReportedBuckets:
             SNSMessage += "\nBucket:  [ " + rp + " ]  \nIssues: "
             SNSMessage += str(ReportedBuckets[rp]) + "\n"
-        SNSMessage +=  "\nTotal files with suspect permissions: "
+        SNSMessage += "\nTotal files with suspect permissions: "
         SNSMessage += str(ProblemFiles) + "\n"
-        SNSMessage +=  "\nTotal buckets with suspect permissions: "
+        SNSMessage += "\nTotal buckets with suspect permissions: "
         SNSMessage += str(ProblemBuckets) + "\n"
-        SNSMessage +=  "\nTotal errors: "
+        SNSMessage += "\nTotal errors: "
         SNSMessage += str(Errors) + "\n"
         LR("send_sns_message", {
-                                    'SNSARN' : SNSARN,
-                                    'SNSMessage' : SNSMessage,
-                                    'SNSSubject' : SNSSubject
+                                    'SNSARN': SNSARN,
+                                    'SNSMessage': SNSMessage,
+                                    'SNSSubject': SNSSubject
                                 })
     else:
         print("[ No buckets with open permissions! ]")

@@ -12,10 +12,10 @@ logger.setLevel(logging.WARNING)
 
 
 # Program meta
-vers = "3.0"
+vers = "3.1"
 ProgramName = "AutoOrc"
 Desc = "Auto stops and starts EC2 Instances/RDS instances bass on tags"
-ls = " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - "
+ls = " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 
 
 # define boto3 connections/variables
@@ -29,10 +29,10 @@ LClient = boto3.client('lambda')
 
 def LR(function_name, payload=None):
 
-    if payload != None:
-        pload = { "FunctionName": function_name, "FunctionPayload": payload }
+    if payload is not None:
+        pload = {"FunctionName": function_name, "FunctionPayload": payload}
     else:
-        pload = { "FunctionName": function_name }
+        pload = {"FunctionName": function_name}
 
     LambdaRelayOutput = LClient.invoke(
             FunctionName='lambda_function_relay',
@@ -83,13 +83,13 @@ def lambda_handler(event, context):
     print(ls + "\n[ AutoOrc routine start time : " + timer + region + " ]")
     # set base filters for running/stopped instances, and matching orc tags
     FilterRunning = [
-        {'Name': 'instance-state-name','Values': ['running']},
-        {'Name': 'tag:autoOrc-down','Values': [timer]}
+        {'Name': 'instance-state-name', 'Values': ['running']},
+        {'Name': 'tag:autoOrc-down', 'Values': [timer]}
         ]
 
     FilterStopped = [
-        {'Name': 'instance-state-name','Values': ['stopped']},
-        {'Name': 'tag:autoOrc-up','Values': [timer]}
+        {'Name': 'instance-state-name', 'Values': ['stopped']},
+        {'Name': 'tag:autoOrc-up', 'Values': [timer]}
         ]
     # determine all running instances and filter for the orc up tag
     OrcInstances = ec2.instances.filter(Filters=FilterRunning)
@@ -111,7 +111,7 @@ def lambda_handler(event, context):
         # print "Instance " + name + " status code: " + str(StateCode)
         if StateCode == 16:
             ErrorCounter += 1
-            print( "error stopping " + name + ", error code: " + str(StateCode))
+            print("Error stopping " + name + ", error code: " + str(StateCode))
     if (counter > 0):
         putCloudWatchMetric(MyAWSID, counter, 'autoOrc-down', 'Success')
     if (ErrorCounter > 0):
@@ -132,14 +132,14 @@ def lambda_handler(event, context):
                                                     "EC2ID": instance.id
                                                 })
             # Print the instances starting for logging purposes
-            print( "---> Starting instance: ")
+            print("---> Starting instance: ")
             print(instance.id + " [ Name : " + name + " ] ")
             response = instance.start()
             StateCode = response['StartingInstances'][0]['CurrentState']['Code']
             # print "Instance " + name + " status code: " + str(StateCode)
             if StateCode in BadStartCodes:
                 ErrorCounter += 1
-                print( " Error starting " + name + ", code: " + str(StateCode))
+                print(" Error starting " + name + ", code: " + str(StateCode))
         if (counter > 0):
             putCloudWatchMetric(MyAWSID, counter, 'autoOrc-up', 'Success')
         if (ErrorCounter > 0):
@@ -154,7 +154,7 @@ def lambda_handler(event, context):
         RDSStatus = str(RDSInstance['DBInstanceStatus'])
         RDSAZState = str(RDSInstance['MultiAZ'])
         if d.isoweekday() in range(1, 6):
-            if RDSAZState  == 'False' and RDSStatus  == 'stopped':
+            if RDSAZState == 'False' and RDSStatus == 'stopped':
                 orc_up = get_rds_orc_tags(RDSARN, "autoOrc-up")
                 if orc_up == timer:
                     print("RDS : " + RDSName + " database is starting up")
@@ -165,4 +165,4 @@ def lambda_handler(event, context):
                 print("RDS : " + RDSName + " database is shutting down now")
                 rds.stop_db_instance(DBInstanceIdentifier=RDSName)
 
-    print( "[ AutoOrc routine finished " +region + " ]\n" + ls)
+    print("[ AutoOrc routine finished " + region + " ]\n" + ls)

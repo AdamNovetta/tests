@@ -17,18 +17,22 @@
   }
 }
 '''
-#  -----------------------------------------------------------------------------
+
 # tools needed
-import json, boto3, logging, time, datetime
+import json
+import boto3
+import logging
+import time
+import datetime
 from time import mktime
-# Program meta -----------------------------------------------------------------
+# Meta
 vers = "1.0"
 ProgramName = "sns_alert_cloudtrail_trigger"
-#  -----------------------------------------------------------------------------
+
 # output logging for INFO, to see full output in cloudwatch, default to warning
 logger = logging.getLogger()
 logger.setLevel(logging.WARNING)
-#  -----------------------------------------------------------------------------
+
 # make connections to services
 EC2RegionName = "us-east-1"
 # functions to connect to AWS API
@@ -49,7 +53,8 @@ else:
 SNSClient = boto3.client('sns')
 MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
 SNSARN = 'arn:aws:sns:' + EC2RegionName + ':' + MyAWSID + ':AWS_Alerts'
-#  -----------------------------------------------------------------------------
+
+
 class Render(json.JSONEncoder):
 
     def default(self, obj):
@@ -57,7 +62,8 @@ class Render(json.JSONEncoder):
             return int(mktime(obj.timetuple()))
 
         return json.JSONEncoder.default(self, obj)
-#  -----------------------------------------------------------------------------
+
+
 # Main function
 def lambda_handler(event, context):
     print(json.dumps(event, cls=Render))
@@ -70,18 +76,18 @@ def lambda_handler(event, context):
         if "instanceId" in items:
             InstanceIDs.append(items['instanceId'])
             count += 1
-    SNSMessage =  "[ Accont auto-alert for " + AWSAccountName + " ]"  
-    SNSMessage += "\n\nUser [ " + InstanceOwner + " ] \n Created [ " 
+    SNSMessage = "[ Accont auto-alert for " + AWSAccountName + " ]"
+    SNSMessage += "\n\nUser [ " + InstanceOwner + " ] \n Created [ "
     SNSMessage += str(count) + " - " + InstanceType + " ] instance(s): "
     for ids in InstanceIDs:
         SNSMessage += "\n  " + ids
     SNSClient.publish(
-    TopicArn=SNSARN, 
-    Message=SNSMessage, 
-    Subject=AWSAccountName+' - EC2 Instances Created' 
-    )
+                        TopicArn=SNSARN,
+                        Message=SNSMessage,
+                        Subject=AWSAccountName+' - EC2 Instances Created'
+                    )
     for instance in InstanceIDs:
         EC2Client.create_tags(
-        Resources=[instance],
-        Tags=[{'Key': 'Created-By', 'Value': InstanceOwner },]
-        )
+                        Resources=[instance],
+                        Tags=[{'Key': 'Created-By', 'Value': InstanceOwner}, ]
+                        )
