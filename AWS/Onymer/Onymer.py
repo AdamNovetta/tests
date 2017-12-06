@@ -65,7 +65,7 @@ def log_output(data):
     d = str(datetime.datetime.now())
 
     if "starting" in state:
-        output = " [ " + ProgramName + " - " + vers + " | " + state +" " + proc
+        output = "[ " + ProgramName + " - " + vers + " | " + state + " " + proc
         output += " process @ " + d + " ]"
 
     if "success" in state:
@@ -239,7 +239,7 @@ def lambda_handler(event, context):
             else:
                 NewSnapN = Desc
                 logData['proc'] = "Labeling Snapashot: " + SnapID + " : " + Desc
-                logData['data'] = "as " +NewSnapN
+                logData['data'] = "as " + NewSnapN
                 logData['state'] = "success"
 
             Snapshot_new_name = [{'Key': 'Name', 'Value': NewSnapN}]
