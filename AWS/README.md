@@ -9,6 +9,6 @@
 ### AWS/Effingo 
  - Auto-snapshotting for EBS volumes based on tagging 
 ### AWS/Onymer
- - Auto-(tagging)naming EC2 resources 
+ - Auto-naming (tagging) EC2 resources 
 ### AWS/test_alerts
- - boilerplate scripts to test alert configurations
+ - boilerplate test scripts
