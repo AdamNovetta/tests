@@ -1,4 +1,4 @@
-#   Effingo - Lambda Function - V 1.0
+#   Effingo - Lambda Function - V 1.2
 --------------------------------------------------------------------------------
 ## Purpose:
 This program makes snapshots of the EBS volumes on a daily/weekly/monthly schedule
