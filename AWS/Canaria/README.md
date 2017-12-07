@@ -1,4 +1,4 @@
-#   Canaria - Lambda Function - V 1.0
+#   Canaria - Lambda Function - V 3.2
 --------------------------------------------------------------------------------
 ## Purpose:
 This program alerts an SNS topic to possible insecure configurations. Currently the checks performed are:
