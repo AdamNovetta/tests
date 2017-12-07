@@ -47,3 +47,13 @@ def lambda_handler(event, context):
 
     print("Available Functions on AWS: " + str(LambdaFunctions))
     print("Full list of functions on Git: " + str(MasterIndex))
+
+
+    # TODO
+
+    # check/diff local functions vs master index (and versions)
+
+    # create IAM policy
+    # create Role
+    # create laambda scripts
+    # publish version?
