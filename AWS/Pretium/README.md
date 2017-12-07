@@ -2,4 +2,4 @@
 --------------------------------------------------------------------------------
 
 ## Purpose:
-  Reports AWS billing information for month
+  Reports AWS billing information for the month
