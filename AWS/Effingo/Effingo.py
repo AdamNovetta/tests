@@ -49,49 +49,38 @@ def LR(function_name, payload=None):
     return(data)
 
 
-# get the 'Name' tag out of the batch of tags sent
-def get_tag_name(TAGS):
-    # returns the Name|tag:value given an instanceID
-    NameTag = ''
-    if TAGS is not None:
-        for tags in TAGS:
-            if tags["Key"] == 'Name':
-                NameTag = tags["Value"]
-    else:
-        NameTag = UnNamedLabel
-    return NameTag
-
-
 # Main function of the script
 def lambda_handler(event, context):
-    # Get the AWS Account ID
     MyAWSID = LR("get_account_ID")[1:-1]
-    # Get the AWS Account Name
     AccountName = LR("get_account_name")[1:-1]
-    # Make sure the SNS topic below exists
     SNSTopicName = "auto-snapshots"
     SNSARN = "arn:aws:sns:" + EC2RegionName + ":" + MyAWSID + ":" + SNSTopicName
-    # List witch snapshots to delete
     deletelist = []
-    # The volumes tags we're looking for to establish the backup intervals
     VolumeTags = ['DailySnapshot', 'WeeklySnapshot', 'MonthlySnapshot']
-    # Message to return result via SNS
     message = errmsg = ""
-    # Counters
     TotalCreates = TotalDeletes = CountErrors = CountSuccess = CountTotal = 0
     passes = 0
-    # Number of snapshots to keep (the older ones are going to be deleted)
-    KeepWeek = 5
+    # Number of days to keep snapshot types
+    KeepWeek = 3
     KeepDay = 5
     KeepMonth = 2
-    # time variables
     today = datetime.today()
     day = today.strftime('%-d')
     month = today.strftime('%-m')
     now = datetime.weekday(today)
     DaysInMonth = calendar.mdays[int(month)]
-    # all of the VolumeTags are now tasks to be done (daily/weekly/monthly)
     tasks = VolumeTags
+
+    # get the 'Name' tag out of the batch of tags sent
+    def get_tag_name(TAGS):
+        NameTag = ''
+        if TAGS is not None:
+            for tags in TAGS:
+                if tags["Key"] == 'Name':
+                    NameTag = tags["Value"]
+        else:
+            NameTag = UnNamedLabel
+        return NameTag
 
     # Get the tags of a reouse that's passed to the func
     def get_resource_tags(resources):
@@ -219,7 +208,7 @@ def lambda_handler(event, context):
                     keep = KeepMonth
                 delta = len(deletelist) - keep
                 for i in range(delta):
-                    DeleteMessage = '     Deleting snapshot '
+                    DeleteMessage = ' Deleting snapshot '
                     DeleteMessage += str(deletelist[i].description)
                     logging.info(DeleteMessage)
                     deletelist[i].delete()
@@ -246,7 +235,6 @@ def lambda_handler(event, context):
 
     print('\n' + message + '\n')
 
-    # SNS reporting
     if SNSARN:
         if errmsg:
             ErrorSNSSubject = AccountName + ' - Error with AWS Snapshots'
