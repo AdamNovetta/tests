@@ -59,7 +59,6 @@ def lambda_handler(event, context):
     VolumeTags = ['DailySnapshot', 'WeeklySnapshot', 'MonthlySnapshot']
     message = errmsg = ""
     TotalCreates = TotalDeletes = CountErrors = CountSuccess = CountTotal = 0
-    passes = 0
     # Number of days to keep snapshot types
     KeepWeek = 3
     KeepDay = 5
@@ -120,7 +119,7 @@ def lambda_handler(event, context):
                     )
                 resource.create_tags(Tags=[{'Key': TKey, 'Value': TValue}])
 
-    # Only run 'WeeklySnapshot' on day 5 - saturday
+    # Only run 'WeeklySnapshot' on day 5 - Saturday
     if 5 != now:
         tasks.remove('WeeklySnapshot')
     # Only run the 'MonthlySnapshot' on the last day of the month
