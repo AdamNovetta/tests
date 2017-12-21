@@ -116,7 +116,7 @@ def lambda_handler(event, context):
     # Logging and counting objects tracking vars
     logData = {}
     counter = name_counter()
-    logData['count'] = logData['proc'] = logData['state'] = logData['data'] = ''
+    logData['proc'] = logData['state'] = logData['data'] = ''
     logData['count'] = counter
     # EBS renaming process
     logData['state'] = "starting"
@@ -224,6 +224,7 @@ def lambda_handler(event, context):
                             logData['proc'] = " Labeling SnapID: " + SnapID
                             logData['data'] = " as  " + NewSnapN
                             logData['state'] = "success"
+
                         except:
                             logData['proc'] = "no volume with ID " + SnapVolume
                             logData['data'] = "exists"
