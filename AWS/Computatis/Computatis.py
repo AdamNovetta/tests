@@ -53,20 +53,20 @@ def get_function_url(func):
     return(location)
 
 def get_function_content(l):
-    print("OK the location is - " + l)
+    print("URL Fetch - OK, the location is - " + l)
     FileObject = requests.get(l)
     if(FileObject.ok):
         contents = requests.get(l)
-        print("printed content: " + str(contents.content))
+        #print("printed content: " + str(contents.content))
         zfn = "aws.zip"
         zname = os.path.join("/tmp", zfn)
         zfile = open(zname, 'wb')
         # check if file exists
-        print(os.listdir("/tmp"))
         zfile.write(contents.content)
         zfile.close()
+        print("ls /tmp :\n" + str(os.listdir("/tmp")))
         archive = zipfile.ZipFile(zname, 'r')
-        print(archive.namelist())
+        print("what's in aws.zip:\n " + str(archive.namelist()))
         file_contents = archive.read('lambda_function.py')
         print(file_contents)
 
