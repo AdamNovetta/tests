@@ -7,6 +7,7 @@ ec2 = boto3.resource('ec2')
 client = boto3.client('ec2')
 instances = ec2.instances.all()
 
+
 def lambda_handler(event, context):
     # get the 'Name' tag out of the batch of tags sent
     def get_tag_name(TAGS):
@@ -18,20 +19,17 @@ def lambda_handler(event, context):
 
         return(NameTag)
 
-
     heading = ['IDs', 'Name', 'Status']
     names = []
     statuses = []
     IDs = []
     column = 0
 
-
     def length_check(check, col=column):
         if len(check) > col:
             col = len(check)
 
         return(col)
-
 
     for instance in instances:
         FullDetails = client.describe_instances(InstanceIds=[instance.id])
