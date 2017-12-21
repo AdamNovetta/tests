@@ -33,9 +33,15 @@ def lambda_handler(event, context):
     for users in AllIAMUsers.paginate():
         # look at all user data by uncommenting this line
         # print(json.dumps(users, cls=Render))
-
-        print line + "\nIAM Username    |    IAM User ID\n" + line
+        userCol = idCol = 0
+        userList = {}
+        print(line + "\nIAM Username    |    IAM User ID\n" + line)
         for user in users['Users']:
-            print user['UserName'] + " | " + user['UserId']
-
+            if len(user['UserName']) > userCol:
+                userCol = len(user['UserName'])
+            if len(user['UserId']) > idCol:
+                idCol = len(user['UserId'])
+            userList = user['UserName']: user['UserId']
+        for user in userList:
+            print(user)
         print(line)
