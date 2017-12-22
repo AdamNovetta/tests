@@ -127,7 +127,7 @@ def sync_git_to_aws(fname, code):
     return(output)
 
 
-def create_lambda_function(fname, code):
+def create_lambda_function(fname, code, policy):
     return(print("   --> function to create is not implemented yet"))
 
 
@@ -139,7 +139,6 @@ def lambda_handler(event, context):
     Git_Functions = {}
 
     for i in LambdaFunctions:
-        rolename = "lambda-"+i
         Loc = get_function_url(i)
         content = get_function_content(Loc)
         AWS_Lambdas[i] = {}
@@ -148,7 +147,6 @@ def lambda_handler(event, context):
             print(get_IAM_role_permissions(rolename))
 
     for i in MasterIndex:
-
         GitContents = get_git_contents(i, scripts)
         IAMContents = get_git_contents(i, perms)
         # p = IAMContents['Statement']['Sid']
@@ -158,7 +156,10 @@ def lambda_handler(event, context):
 
     for x in Git_Functions:
         policy = json.loads(Git_Functions[x]['IAM'].decode())
-        print(policy['Statement'][0]['Sid'])
+        policyName = policy['Statement'][0]['Sid']
+        rolename = "lambda-"+i
+        if rolename in IAMRoles:
+            print(get_IAM_role_permissions(rolename))
         if x in AWS_Lambdas:
             if AWS_Lambdas[x]['Code'] == Git_Functions[x]['Code']:
                 print(x + " already on AWS account and code matches!")
@@ -169,7 +170,7 @@ def lambda_handler(event, context):
                 sync_git_to_aws(x, Git_Functions[x]['Code'])
         if x not in AWS_Lambdas:
             print(" - " + x + " is missing from AWS Lambda list!")
-            create_lambda_function(x, Git_Functions[x]['Code'])
+            create_lambda_function(x, Git_Functions[x]['Code'], policy)
 
     # TODO
     # check/diff local functions vs master index (and versions):
