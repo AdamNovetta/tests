@@ -4,8 +4,6 @@ import boto3
 import logging
 import requests
 import json
-import hashlib
-import base64
 import zipfile
 from urllib.request import urlopen
 
@@ -52,85 +50,85 @@ def get_function_url(func):
 
     return(location)
 
+
 def get_function_content(l):
-    print("URL Fetch - OK, the location is - " + l)
     FileObject = requests.get(l)
     if(FileObject.ok):
+        file_contents = ''
         contents = requests.get(l)
-        #print("printed content: " + str(contents.content))
         zfn = "aws.zip"
         zname = os.path.join("/tmp", zfn)
         zfile = open(zname, 'wb')
         # check if file exists
         zfile.write(contents.content)
         zfile.close()
-        print("ls /tmp :\n" + str(os.listdir("/tmp")))
         archive = zipfile.ZipFile(zname, 'r')
-        print("what's in aws.zip:\n " + str(archive.namelist()))
-        file_contents = archive.read('lambda_function.py')
-        print(file_contents)
+        FIZ = archive.namelist()
+        for item in FIZ:
+            if item.endswith(ext):
+                file_contents = archive.read(item)
+        if(file_contents):
+            return(file_contents)
+
 
 # Get AWS Lambda functions with .py extentions on the designated repo above
 def get_functions_masters():
     repo = requests.get(giturl + user + targetRepo + gitContent + targetSubDir)
     GFList = []
-    # print("starting git API pulll....")
-    # print("repo info: " + str(repo))
     if(repo.ok):
         repoItem = json.loads(repo.content)
         for script in repoItem:
-            # print(str(json.dumps(script)) + "\n --------------------------")
             for item in script:
                 if item == "name" and script[item].endswith(ext):
                     GFList.append(script[item].split('.')[0])
     else:
         print("ERROR!!!!\n" + str(repo))
-    # print(json.dumps(repoItem))
+
     return(GFList)
 
 
-def get_sha256_AWS(function):
-    sha256 = lambda_client.get_function(
-                                        FunctionName=function
-                                        )['Configuration']['CodeSha256']
-    return(sha256)
-
-
-def get_sha256_git(fname):
+def get_git_contents(fname):
     string = gitraw + user + targetRepo + rawSub + targetSubDir + fname + ext
     repo = requests.get(string)
     if(repo.ok):
-        repoItem = repo.content
-        # print(repoItem)
-
-        sha256 = hashlib.sha256(repoItem).digest()
-        # encoded = sha256.decode("hex").encode("base64")
-        based = base64.b64encode(sha256)
-    return(str(based))
+        file_contents = repo.content
+    return(file_contents)
 
 
 def lambda_handler(event, context):
     LambdaFunctions = get_available_functions()
     MasterIndex = get_functions_masters()
+    AWS_Lambdas = {}
+    Git_Functions = {}
 
-    print("Available Functions on AWS: ")
     for i in LambdaFunctions:
-        print(i)
-        LambdaHash = get_sha256_AWS(i)
         Loc = get_function_url(i)
         content = get_function_content(Loc)
-        print(LambdaHash + "\n" + str(Loc))
-    print("-----------------------------------------------------\n\n\n\n")
-    print("Available Functions on Git: ")
+        AWS_Lambdas[i] = content
+
     for i in MasterIndex:
-        print(i)
-        GitHash = get_sha256_git(i)
-        print(GitHash)
+        GitContents = get_git_contents(i)
+
+        Git_Functions[i] = GitContents
+    for x in Git_Functions:
+        if x in AWS_Lambdas:
+            if AWS_Lambdas[x] == Git_Functions[x]:
+                print(x + " is on the AWS account and the Code matches!")
+            else:
+                print("XXX CODE NOT THE SAME FOR : " + x + " XXX")
+                print("Code on git: \n" + str(Git_Functions[x].decode()))
+                print("Code on AWS: \n" + str(AWS_Lambdas[x].decode()))
+        if x not in AWS_Lambdas:
+            print(" - " + x + " is missing from AWS Lambda list!")
 
     # TODO
-    # check/diff local functions vs master index (and versions)
-    # create IAM policy
-    # create Role
-    # create laambda scripts
-    # publish version?
-    # error outputs
+    # check/diff local functions vs master index (and versions):
+    # - if code locally differs from master list, pull from master list
+    # - if code isn't on this AWS account:
+    #       - create IAM policy
+    #       - create Role
+    #       - create laambda scripts
+    #       - assign: role/lambda_script/settings
+    #       - publish version/create alias?
+    # report changes and additions / extra meta?
+    # error outputs on failure for any function/steps
