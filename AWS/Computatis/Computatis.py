@@ -5,7 +5,6 @@ import logging
 import requests
 import json
 import zipfile
-from urllib.request import urlopen
 
 # Program meta
 vers = "1.0"
@@ -22,8 +21,8 @@ giturl = 'https://api.github.com/repos/'
 gitraw = 'https://raw.githubusercontent.com/'
 targetRepo = '/AWS-API-TOOLS'
 gitContent = '/contents'
-targetSubDir = '/scripts/'
-rawSub = '/master'
+targetDir = '/scripts/'
+rawBranch = '/master'
 
 
 # Filetype of Lambda scripts
@@ -59,10 +58,10 @@ def get_function_content(l):
         zfn = "aws.zip"
         zname = os.path.join("/tmp", zfn)
         zfile = open(zname, 'wb')
-        # check if file exists
         zfile.write(contents.content)
         zfile.close()
         archive = zipfile.ZipFile(zname, 'r')
+        # check if file exists
         FIZ = archive.namelist()
         for item in FIZ:
             if item.endswith(ext):
@@ -73,7 +72,7 @@ def get_function_content(l):
 
 # Get AWS Lambda functions with .py extentions on the designated repo above
 def get_functions_masters():
-    repo = requests.get(giturl + user + targetRepo + gitContent + targetSubDir)
+    repo = requests.get(giturl + user + targetRepo + gitContent + targetDir)
     GFList = []
     if(repo.ok):
         repoItem = json.loads(repo.content)
@@ -88,7 +87,7 @@ def get_functions_masters():
 
 
 def get_git_contents(fname):
-    string = gitraw + user + targetRepo + rawSub + targetSubDir + fname + ext
+    string = gitraw + user + targetRepo + rawBranch + targetDir + fname + ext
     repo = requests.get(string)
     if(repo.ok):
         file_contents = repo.content
