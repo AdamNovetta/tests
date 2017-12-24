@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import boto3
 import logging
@@ -13,7 +13,7 @@ desc = "Lambda inventory management"
 
 # Output logging - default WARNING. Set to INFO for full output in cloudwatch
 logger = logging.getLogger()
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 # User/Repo settings for all source lambda scripts on Github
 user = 'AdamNovetta'
@@ -56,6 +56,7 @@ def get_function_url(func):
     return(location)
 
 
+# download a function given location (l) and return the contents
 def get_function_content(l):
     FileObject = requests.get(l)
     if(FileObject.ok):
@@ -93,6 +94,7 @@ def get_functions_masters():
     return(GFList)
 
 
+# get contents of a specified git object, two types are the script and perms
 def get_git_contents(fname, objs):
     if objs == scripts:
         string = gitraw + user + targetRepo + rawBranch + objs + fname + ext
@@ -104,6 +106,7 @@ def get_git_contents(fname, objs):
     return(file_contents)
 
 
+# get all role names on the aws account
 def get_IAM_role_names():
     output = []
     roles = IAM_client.list_roles()
@@ -112,14 +115,49 @@ def get_IAM_role_names():
     return(output)
 
 
-def get_IAM_role_permissions(rname):
+# get all owned policy names
+def get_IAM_policy_names():
+    output = []
+    pols = IAM_client.list_policies(Scope='Local')
+    for p in pols['Policies']:
+        output.append(p['PolicyName'])
+    print(" HERES THE POLICES WE HAVE" + str(output))
+    return(output)
+
+
+# get the policy names attached to a role
+def get_IAM_role_policies(rname):
     output = IAM_client.list_role_policies(RoleName=rname)
     return(output['PolicyNames'])
 
 
+# creates a IAM policy with pol contents/json
+def create_IAM_policy(pol):
+    pname = pol['Statement'][0]['Sid']
+    print("===>> creating IAM policy: " + pname)
+    # TODO : Create IAM policy
+
+
+# create IAM role, given a name and policy
+def create_IAM_role(rname, pol):
+    pname = pol['Statement'][0]['Sid']
+    IAMP = get_IAM_policy_names()
+    print("  >>----> [ creating role ] " + str(rname))
+    # TODO:
+    # create a role
+
+    if pname not in IAMP:
+        print("  >>----> creating IAM Policy " + str(pname))
+        create_IAM_policy(pol)
+
+    print(" >>---------> Attaching IAM policy to role" + str(pol) + str(rname))
+    # TODO: add policy to new role...
+
+
+# update the existing functions code from git source code supplied
 def sync_git_to_aws(fname, code):
     output = lambda_client.update_function_code(
-                                                    FunctionName='string',
+                                                    FunctionName=fname,
                                                     ZipFile=code,
                                                     # Publish=True
                                                     DryRun=True
@@ -127,13 +165,17 @@ def sync_git_to_aws(fname, code):
     return(output)
 
 
+# create a new lambda function
 def create_lambda_function(fname, code, policy):
-    return(print("   --> function to create is not implemented yet"))
+    return(print("  =--> function to create is not implemented yet"))
+    # TODO: Create a new lambda function
 
 
+# main
 def lambda_handler(event, context):
     LambdaFunctions = get_available_functions()
     IAMRoles = get_IAM_role_names()
+    IAMPolicies = get_IAM_policy_names()
     MasterIndex = get_functions_masters()
     AWS_Lambdas = {}
     Git_Functions = {}
@@ -143,8 +185,6 @@ def lambda_handler(event, context):
         content = get_function_content(Loc)
         AWS_Lambdas[i] = {}
         AWS_Lambdas[i]['Code'] = content
-        if rolename in IAMRoles:
-            print(get_IAM_role_permissions(rolename))
 
     for i in MasterIndex:
         GitContents = get_git_contents(i, scripts)
@@ -157,9 +197,22 @@ def lambda_handler(event, context):
     for x in Git_Functions:
         policy = json.loads(Git_Functions[x]['IAM'].decode())
         policyName = policy['Statement'][0]['Sid']
-        rolename = "lambda-"+i
+        rolename = "lambda-"+x
+        # Look for roles matching this rolename
         if rolename in IAMRoles:
-            print(get_IAM_role_permissions(rolename))
+            RolePermissions = get_IAM_role_permissions(rolename)
+            print("  --> Role: " + rolename + " exists!")
+            # look at permissions on role
+            for rp in RolePermissions:
+                print("\nRole Permissions: " + str(rp))
+                if rp in IAMPolicies:
+                    print("Policy exists!")
+                else:
+                    print("Policy needs to be created")
+                    create_IAM_policy(policy)
+        else:
+            print(" >>> Creating role <<< ")
+            create_IAM_role(rolename, policy)
         if x in AWS_Lambdas:
             if AWS_Lambdas[x]['Code'] == Git_Functions[x]['Code']:
                 print(x + " already on AWS account and code matches!")
@@ -169,7 +222,7 @@ def lambda_handler(event, context):
                 print("AWS code:\n" + str(AWS_Lambdas[x]['Code'].decode()))
                 sync_git_to_aws(x, Git_Functions[x]['Code'])
         if x not in AWS_Lambdas:
-            print(" - " + x + " is missing from AWS Lambda list!")
+            print(" - Lambda : " + x + " is missing from AWS Lambda list!")
             create_lambda_function(x, Git_Functions[x]['Code'], policy)
 
     # TODO
