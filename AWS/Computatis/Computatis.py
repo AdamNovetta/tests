@@ -1,7 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import boto3
 import logging
+import base64
 import requests
 import json
 import zipfile
@@ -13,7 +14,7 @@ desc = "Lambda inventory management"
 
 # Output logging - default WARNING. Set to INFO for full output in cloudwatch
 logger = logging.getLogger()
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 # User/Repo settings for all source lambda scripts on Github
 user = 'AdamNovetta'
@@ -28,13 +29,17 @@ rawBranch = '/master'
 
 # Filetype and runtime info of Lambda scripts
 ext = '.py'
+IAMext = '.IAM'
 runtime = 'python3.6'
 handler = 'lambda_function.lambda_handler'
-IAMext = '.IAM'
 
 # Define boto3 connections/variables
 lambda_client = boto3.client('lambda')
 IAM_client = boto3.client('iam')
+iam = boto3.resource('iam')
+MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
+
+baseARN = 'arn:aws:iam::' + MyAWSID + ':'
 
 
 # Get AWS Lambda functions currently in this AWS account
@@ -56,6 +61,7 @@ def get_function_url(func):
     return(location)
 
 
+# download a function given location (l) and return the contents
 def get_function_content(l):
     FileObject = requests.get(l)
     if(FileObject.ok):
@@ -66,14 +72,32 @@ def get_function_content(l):
         zfile = open(zname, 'wb')
         zfile.write(contents.content)
         zfile.close()
-        archive = zipfile.ZipFile(zname, 'r')
         # check if file exists
+        archive = zipfile.ZipFile(zname, 'r')
         FIZ = archive.namelist()
         for item in FIZ:
             if item.endswith(ext):
                 file_contents = archive.read(item)
         if(file_contents):
             return(file_contents)
+
+
+# zip updated function code
+def zip_new_function(code):
+        c = code.decode()
+        fn = "lambda_function" + ext
+        fname = os.path.join("/tmp", fn)
+        fo = open(fname, "w")
+        fo.write(c)
+        fo.close()
+        zfn = "lambda_function.zip"
+        zname = os.path.join("/tmp", zfn)
+        zfile = zipfile.ZipFile(zname, 'w')
+        zfile.write(fname, fn)
+        zfile.close()
+        output = open(zname, 'rb').read()
+
+        return(output)
 
 
 # Get AWS Lambda functions with .py extentions on the designated repo above
@@ -93,6 +117,7 @@ def get_functions_masters():
     return(GFList)
 
 
+# get contents of a specified git object, two types are the script and perms
 def get_git_contents(fname, objs):
     if objs == scripts:
         string = gitraw + user + targetRepo + rawBranch + objs + fname + ext
@@ -101,39 +126,153 @@ def get_git_contents(fname, objs):
     repo = requests.get(string)
     if(repo.ok):
         file_contents = repo.content
-    return(file_contents)
+        return(file_contents)
+    else:
+        return("CAN'T READ " + fname)
 
 
+# get all role names on the aws account
 def get_IAM_role_names():
     output = []
     roles = IAM_client.list_roles()
     for role in roles['Roles']:
         output.append(role['RoleName'])
+
     return(output)
 
 
-def get_IAM_role_permissions(rname):
-    output = IAM_client.list_role_policies(RoleName=rname)
-    return(output['PolicyNames'])
+# get IAM policy contents
+def get_IAM_policy_contents(pname):
+    ARN = baseARN + 'policy/' + pname
+    try:
+        v = IAM_client.get_policy(PolicyArn=ARN)['Policy']['DefaultVersionId']
+        pd = IAM_client.get_policy_version(PolicyArn=ARN, VersionId=v)
+        output = pd['PolicyVersion']['Document']
+    except e as BaseException:
+        output = 'No-data for policy' + str(pname) + str(e)
+
+    return(output)
 
 
+# get all owned policy names
+def get_IAM_policy_names():
+    output = []
+    pols = IAM_client.list_policies(Scope='Local')
+    for p in pols['Policies']:
+        output.append(p['PolicyName'])
+
+    return(output)
+
+
+# get the policy names attached to a role
+def get_IAM_role_policies(rname):
+    all_policies = IAM_client.list_attached_role_policies(RoleName=rname)
+    output = []
+    for p in all_policies['AttachedPolicies']:
+        output.append(p['PolicyName'])
+
+    return(output)
+
+
+# creates a IAM policy with pol contents/json
+def create_IAM_policy(pol):
+    pname = pol['Statement'][0]['Sid']
+    pdesc = str(pname) + " - (Computatis Synced)"
+    pol = json.dumps(pol)
+    IAM_client.create_policy(
+                                PolicyName=pname,
+                                PolicyDocument=pol,
+                                Description=pdesc
+                            )
+
+
+# Update an existing IAM policy with new permissions
+def update_IAM_policy(pol):
+    pname = pol['Statement'][0]['Sid']
+    ARN = baseARN + 'policy/' + pname
+    pol = json.dumps(pol)
+    output = IAM_client.create_policy_version(
+                                                PolicyArn=ARN,
+                                                PolicyDocument=pol,
+                                                SetAsDefault=True
+                                            )
+
+
+# create IAM role, given a name and policy, and create policy if missing
+def create_IAM_role(rname, pol):
+    pname = pol['Statement'][0]['Sid']
+    ARN = baseARN + 'policy/' + pname
+    ARPD = """{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}"""
+    rdesc = "Allows lambda function " + rname + " to run (Computatis Synced)"
+    IAMP = get_IAM_policy_names()
+
+    if pname not in IAMP:
+        create_IAM_policy(pol)
+    else:
+        current_policy = get_IAM_policy_contents(pname)
+        if pol != current_policy:
+            update_IAM_policy(pol)
+
+    IAM_client.create_role(
+                            RoleName=rname,
+                            AssumeRolePolicyDocument=ARPD,
+                            Description=rdesc
+                        )
+    IAM_client.attach_role_policy(RoleName=rname, PolicyArn=ARN)
+
+
+# update an existing IAM role
+def update_role(rname, pname):
+    print("          - adding " + pname + " to " + rname)
+    ARN = baseARN + 'policy/' + pname
+    IAM_client.attach_role_policy(RoleName=rname, PolicyArn=ARN)
+
+
+# update the existing functions code from git source code supplied
 def sync_git_to_aws(fname, code):
-    output = lambda_client.update_function_code(
-                                                    FunctionName='string',
-                                                    ZipFile=code,
-                                                    # Publish=True
-                                                    DryRun=True
-                                                )
-    return(output)
+    zc = zip_new_function(code)
+    lambda_client.update_function_code(
+                                        FunctionName=fname,
+                                        ZipFile=zc,
+                                        Publish=True
+                                    )
 
 
+# create a new lambda function
 def create_lambda_function(fname, code, policy):
-    return(print("   --> function to create is not implemented yet"))
+    zc = zip_new_function(code)
+    rname = "lambda-" + fname
+    rARN = "arn:aws:iam::" + MyAWSID + ":role/" + rname
+    rdesc = fname + " Lambda function - (Computatis Synced)"
+    lambda_client.create_function(
+                                    FunctionName=fname,
+                                    Runtime=runtime,
+                                    Role=rARN,
+                                    Handler=handler,
+                                    Code={'ZipFile': zc},
+                                    Description=rdesc,
+                                    Timeout=190,
+                                    MemorySize=128,
+                                    Publish=True
+                                )
 
 
+# main
 def lambda_handler(event, context):
     LambdaFunctions = get_available_functions()
     IAMRoles = get_IAM_role_names()
+    IAMPolicies = get_IAM_policy_names()
     MasterIndex = get_functions_masters()
     AWS_Lambdas = {}
     Git_Functions = {}
@@ -143,34 +282,63 @@ def lambda_handler(event, context):
         content = get_function_content(Loc)
         AWS_Lambdas[i] = {}
         AWS_Lambdas[i]['Code'] = content
-        if rolename in IAMRoles:
-            print(get_IAM_role_permissions(rolename))
 
     for i in MasterIndex:
         GitContents = get_git_contents(i, scripts)
         IAMContents = get_git_contents(i, perms)
-        # p = IAMContents['Statement']['Sid']
         Git_Functions[i] = {}
         Git_Functions[i]['Code'] = GitContents
         Git_Functions[i]['IAM'] = IAMContents
 
     for x in Git_Functions:
+        print("\n\n\n----------------[ Checking on function " + str(x) + " ]----------------")
         policy = json.loads(Git_Functions[x]['IAM'].decode())
         policyName = policy['Statement'][0]['Sid']
-        rolename = "lambda-"+i
+        print("\n          < Current policy " + policyName + " >")
+        rolename = "lambda-" + x
+        # Look for roles matching this rolename
         if rolename in IAMRoles:
-            print(get_IAM_role_permissions(rolename))
+            RolePermissions = get_IAM_role_policies(rolename)
+            print("\n  [ Role: " + rolename + " already exists! ]")
+            # look at permissions on role
+            print("          Role Permissions:")
+            if not RolePermissions:
+                print("          -> No permissions attached to role ")
+                if policyName not in IAMPolicies:
+                    print("          -> No IAM policy named : " + str(policyName))
+                    create_IAM_policy(policy)
+                update_role(rolename, policyName)
+            for rp in RolePermissions:
+                print("          (" + str(rp) + ")")
+                if rp in IAMPolicies:
+                    print("          + " + str(rp) + " policy exists")
+                    pd = get_IAM_policy_contents(rp)
+                    if pd == policy:
+                        print("          + policy " + policyName + " is up to date!")
+                    else:
+                        update_IAM_policy(policy)
+                        update_role(rolename, policyName)
+                else:
+                    print("          -> Policy needs to be created")
+                    create_IAM_policy(policy)
+                    update_role(rolename, policyName)
+        else:
+            print(" >>> Creating role: " + rolename + " <<<")
+            create_IAM_role(rolename, policy)
+            print(" >>> Done with role " + rolename + " creation <<<")
         if x in AWS_Lambdas:
             if AWS_Lambdas[x]['Code'] == Git_Functions[x]['Code']:
-                print(x + " already on AWS account and code matches!")
+                print("\n  [ Function: " + x + " already on AWS account and code matches! ]\n")
             else:
-                print("XXX CODE NOT THE SAME FOR : " + x + " XXX")
+                print("  [ CODE NOT UP TO DATE FOR : " + x + " ]")
                 print("Git code:\n" + str(Git_Functions[x]['Code'].decode()))
                 print("AWS code:\n" + str(AWS_Lambdas[x]['Code'].decode()))
                 sync_git_to_aws(x, Git_Functions[x]['Code'])
+                print("\n")
         if x not in AWS_Lambdas:
-            print(" - " + x + " is missing from AWS Lambda list!")
             create_lambda_function(x, Git_Functions[x]['Code'], policy)
+            print("  - Lambda : " + x + " is missing from AWS Lambda list!\n")
+        print("---------------- END RUN ON FUNCTION " + x + "----------------")
 
     # TODO
     # check/diff local functions vs master index (and versions):
