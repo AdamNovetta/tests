@@ -2,7 +2,6 @@
 import os
 import boto3
 import logging
-import base64
 import requests
 import json
 import zipfile
@@ -141,7 +140,6 @@ def get_IAM_role_names():
     return(output)
 
 
-<<<<<<< HEAD
 # get IAM policy contents
 def get_IAM_policy_contents(pname):
     ARN = baseARN + 'policy/' + pname
@@ -151,22 +149,6 @@ def get_IAM_policy_contents(pname):
         output = pd['PolicyVersion']['Document']
     except e as BaseException:
         output = 'No-data for policy' + str(pname) + str(e)
-=======
-# get all owned policy names
-def get_IAM_policy_names():
-    output = []
-    pols = IAM_client.list_policies(Scope='Local')
-    for p in pols['Policies']:
-        output.append(p['PolicyName'])
-    print(" HERES THE POLICES WE HAVE" + str(output))
-    return(output)
-
-
-# get the policy names attached to a role
-def get_IAM_role_policies(rname):
-    output = IAM_client.list_role_policies(RoleName=rname)
-    return(output['PolicyNames'])
->>>>>>> 37f0f84d0b809f4a6508d95681501affa2f9d7d8
 
     return(output)
 
@@ -178,7 +160,6 @@ def get_IAM_policy_names():
     for p in pols['Policies']:
         output.append(p['PolicyName'])
 
-<<<<<<< HEAD
     return(output)
 
 
@@ -241,46 +222,6 @@ def create_IAM_role(rname, pol):
         current_policy = get_IAM_policy_contents(pname)
         if pol != current_policy:
             update_IAM_policy(pol)
-=======
-# creates a IAM policy with pol contents/json
-def create_IAM_policy(pol):
-    pname = pol['Statement'][0]['Sid']
-    print("===>> creating IAM policy: " + pname)
-    # TODO : Create IAM policy
-
-
-# create IAM role, given a name and policy
-def create_IAM_role(rname, pol):
-    pname = pol['Statement'][0]['Sid']
-    IAMP = get_IAM_policy_names()
-    print("  >>----> [ creating role ] " + str(rname))
-    # TODO:
-    # create a role
-
-    if pname not in IAMP:
-        print("  >>----> creating IAM Policy " + str(pname))
-        create_IAM_policy(pol)
-
-    print(" >>---------> Attaching IAM policy to role" + str(pol) + str(rname))
-    # TODO: add policy to new role...
-
-
-# update the existing functions code from git source code supplied
-def sync_git_to_aws(fname, code):
-    output = lambda_client.update_function_code(
-                                                    FunctionName=fname,
-                                                    ZipFile=code,
-                                                    # Publish=True
-                                                    DryRun=True
-                                                )
-    return(output)
-
-
-# create a new lambda function
-def create_lambda_function(fname, code, policy):
-    return(print("  =--> function to create is not implemented yet"))
-    # TODO: Create a new lambda function
->>>>>>> 37f0f84d0b809f4a6508d95681501affa2f9d7d8
 
     IAM_client.create_role(
                             RoleName=rname,
@@ -289,11 +230,9 @@ def create_lambda_function(fname, code, policy):
                         )
     IAM_client.attach_role_policy(RoleName=rname, PolicyArn=ARN)
 
-<<<<<<< HEAD
 
 # update an existing IAM role
 def update_role(rname, pname):
-    print("          - adding " + pname + " to " + rname)
     ARN = baseARN + 'policy/' + pname
     IAM_client.attach_role_policy(RoleName=rname, PolicyArn=ARN)
 
@@ -327,8 +266,6 @@ def create_lambda_function(fname, code, policy):
                                 )
 
 
-=======
->>>>>>> 37f0f84d0b809f4a6508d95681501affa2f9d7d8
 # main
 def lambda_handler(event, context):
     LambdaFunctions = get_available_functions()
@@ -355,57 +292,39 @@ def lambda_handler(event, context):
         print("\n\n\n----------------[ Checking on function " + str(x) + " ]----------------")
         policy = json.loads(Git_Functions[x]['IAM'].decode())
         policyName = policy['Statement'][0]['Sid']
-<<<<<<< HEAD
-        print("\n          < Current policy " + policyName + " >")
         rolename = "lambda-" + x
+
         # Look for roles matching this rolename
         if rolename in IAMRoles:
             RolePermissions = get_IAM_role_policies(rolename)
             print("\n  [ Role: " + rolename + " already exists! ]")
             # look at permissions on role
             print("          Role Permissions:")
+
+            # no permissions attached to role
             if not RolePermissions:
                 print("          -> No permissions attached to role ")
                 if policyName not in IAMPolicies:
                     print("          -> No IAM policy named : " + str(policyName))
                     create_IAM_policy(policy)
                 update_role(rolename, policyName)
-            for rp in RolePermissions:
-                print("          (" + str(rp) + ")")
-                if rp in IAMPolicies:
-                    print("          + " + str(rp) + " policy exists")
-                    pd = get_IAM_policy_contents(rp)
-                    if pd == policy:
-                        print("          + policy " + policyName + " is up to date!")
-                    else:
-                        update_IAM_policy(policy)
-                        update_role(rolename, policyName)
+
+            # cycle role permissions
+            else:
+                if policyName in RolePermissions:
+                    print("          ->" + policyName + " policy in " + rolename + " permissions")
+                    if policyName in IAMPolicies:
+                        pd = get_IAM_policy_contents(policyName)
+                        if pd != policy:
+                            update_IAM_policy(policy)
+                            update_role(rolename, policyName)
                 else:
-                    print("          -> Policy needs to be created")
                     create_IAM_policy(policy)
                     update_role(rolename, policyName)
         else:
             print(" >>> Creating role: " + rolename + " <<<")
             create_IAM_role(rolename, policy)
             print(" >>> Done with role " + rolename + " creation <<<")
-=======
-        rolename = "lambda-"+x
-        # Look for roles matching this rolename
-        if rolename in IAMRoles:
-            RolePermissions = get_IAM_role_permissions(rolename)
-            print("  --> Role: " + rolename + " exists!")
-            # look at permissions on role
-            for rp in RolePermissions:
-                print("\nRole Permissions: " + str(rp))
-                if rp in IAMPolicies:
-                    print("Policy exists!")
-                else:
-                    print("Policy needs to be created")
-                    create_IAM_policy(policy)
-        else:
-            print(" >>> Creating role <<< ")
-            create_IAM_role(rolename, policy)
->>>>>>> 37f0f84d0b809f4a6508d95681501affa2f9d7d8
         if x in AWS_Lambdas:
             if AWS_Lambdas[x]['Code'] == Git_Functions[x]['Code']:
                 print("\n  [ Function: " + x + " already on AWS account and code matches! ]\n")
@@ -416,22 +335,14 @@ def lambda_handler(event, context):
                 sync_git_to_aws(x, Git_Functions[x]['Code'])
                 print("\n")
         if x not in AWS_Lambdas:
-<<<<<<< HEAD
-=======
-            print(" - Lambda : " + x + " is missing from AWS Lambda list!")
->>>>>>> 37f0f84d0b809f4a6508d95681501affa2f9d7d8
             create_lambda_function(x, Git_Functions[x]['Code'], policy)
             print("  - Lambda : " + x + " is missing from AWS Lambda list!\n")
         print("---------------- END RUN ON FUNCTION " + x + "----------------")
 
     # TODO
-    # check/diff local functions vs master index (and versions):
-    # - if code locally differs from master list, pull from master list
+    # - remove old permissions if name changes on file
+    # - cleanup old functions or old roles?
     # - if code isn't on this AWS account:
-    #       - create IAM policy
-    #       - create Role
-    #       - create laambda scripts
-    #       - assign: role/lambda_script/settings
     #       - publish version/create alias?
     # report changes and additions / extra meta?
     # error outputs on failure for any function/steps
