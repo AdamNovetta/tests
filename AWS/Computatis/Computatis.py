@@ -198,6 +198,15 @@ def update_IAM_policy(pol):
                                             )
 
 
+def remove_old_policies(rname, pname):
+    # get all policies attached to role, remove ones that arent pname
+    aps = get_IAM_role_policies(rname)
+    for pn in aps:
+        if pn != pname:
+            PARN = baseARN + 'policy/' + pn
+            IAM_client.detach_role_policy(RoleName=rname, PolicyArn=PARN)
+
+
 # Create IAM role, given a name and policy json, create policy if missing
 def create_IAM_role(rname, pol):
     pname = pol['Statement'][0]['Sid']
@@ -230,12 +239,14 @@ def create_IAM_role(rname, pol):
                             Description=rdesc
                         )
     IAM_client.attach_role_policy(RoleName=rname, PolicyArn=ARN)
+    remove_old_policies(rname, pname)
 
 
 # Update an existing IAM role
 def update_role(rname, pname):
     ARN = baseARN + 'policy/' + pname
     IAM_client.attach_role_policy(RoleName=rname, PolicyArn=ARN)
+    remove_old_policies(rname, pname)
 
 
 # Update the existing functions code from git source code supplied
@@ -302,13 +313,13 @@ def lambda_handler(event, context):
             # look at permissions on role
             RolePermissions = get_IAM_role_policies(rolename)
 
-            # no permissions attached to role
+            # No permissions attached to role
             if not RolePermissions:
                 if policyName not in IAMPolicies:
                     create_IAM_policy(policy)
                 update_role(rolename, policyName)
 
-            # cycle role permissions, update or create policy as needed
+            # Cycle role permissions, update or create policy as needed
             else:
                 if policyName in RolePermissions:
                     if policyName in IAMPolicies:
@@ -334,6 +345,7 @@ def lambda_handler(event, context):
             create_lambda_function(x, Git_Functions[x]['Code'], policy)
 
     # TODO
+    # - detach policy documents not matching current SID name
     # - if code isn't on this AWS account:
     #       - publish version/create alias?
     # report changes and additions / extra meta?
