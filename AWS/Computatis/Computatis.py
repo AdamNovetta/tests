@@ -311,17 +311,17 @@ def lambda_handler(event, context):
         # Look for roles matching this rolename
         if rolename in IAMRoles:
             # look at permissions on role
-            RolePermissions = get_IAM_role_policies(rolename)
+            RolesPermissions = get_IAM_role_policies(rolename)
 
             # No permissions attached to role
-            if not RolePermissions:
+            if not RolesPermissions:
                 if policyName not in IAMPolicies:
                     create_IAM_policy(policy)
                 update_role(rolename, policyName)
 
             # Cycle role permissions, update or create policy as needed
             else:
-                if policyName in RolePermissions:
+                if policyName in RolesPermissions:
                     if policyName in IAMPolicies:
                         pd = get_IAM_policy_contents(policyName)
                         if pd != policy:
