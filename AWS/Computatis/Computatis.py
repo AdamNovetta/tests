@@ -345,7 +345,7 @@ def lambda_handler(event, context):
             create_lambda_function(x, Git_Functions[x]['Code'], policy)
 
     # TODO
-    # - if code isn't on this AWS account:
+    # - if code isn't on this AWS account or up to date:
     #       - publish version/create alias?
     # report changes and additions / extra meta?
     # error outputs on failure for any function/steps
