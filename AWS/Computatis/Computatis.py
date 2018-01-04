@@ -197,9 +197,8 @@ def update_IAM_policy(pol):
                                                 SetAsDefault=True
                                             )
 
-
+# get all policies attached to role, remove all but pname (the new policy)
 def remove_old_policies(rname, pname):
-    # get all policies attached to role, remove ones that arent pname
     aps = get_IAM_role_policies(rname)
     for pn in aps:
         if pn != pname:
@@ -345,7 +344,6 @@ def lambda_handler(event, context):
             create_lambda_function(x, Git_Functions[x]['Code'], policy)
 
     # TODO
-    # - detach policy documents not matching current SID name
     # - if code isn't on this AWS account:
     #       - publish version/create alias?
     # report changes and additions / extra meta?
