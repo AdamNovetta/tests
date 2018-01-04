@@ -26,7 +26,7 @@ perms = '/permissions/'
 rawBranch = '/master'
 
 
-# Filetype and runtime info of Lambda scripts
+# Filetype and runtime info of Lambda scripts and permissions templates (.IAM)
 ext = '.py'
 IAMext = '.IAM'
 runtime = 'python3.6'
@@ -43,28 +43,28 @@ baseARN = 'arn:aws:iam::' + MyAWSID + ':'
 
 # Get AWS Lambda functions currently in this AWS account
 def get_available_functions():
-    AFList = []
+    output = []
     AvailableFunctions = lambda_client.list_functions()['Functions']
     for function in AvailableFunctions:
         if function['FunctionName'] != ProgramName:
             AFList.append(function['FunctionName'])
 
-    return(AFList)
+    return(output)
 
 
 # Get the AWS stored URL (S3 URL) for the lambda function
 def get_function_url(func):
     function = lambda_client.get_function(FunctionName=func)
-    location = function['Code']['Location']
+    output = function['Code']['Location']
 
-    return(location)
+    return(output)
 
 
-# download a function given location (l) and return the contents
+# Download a function given location (l) and return the code contents
 def get_function_content(l):
     FileObject = requests.get(l)
     if(FileObject.ok):
-        file_contents = ''
+        output = ''
         contents = requests.get(l)
         zfn = "aws.zip"
         zname = os.path.join("/tmp", zfn)
@@ -76,12 +76,12 @@ def get_function_content(l):
         FIZ = archive.namelist()
         for item in FIZ:
             if item.endswith(ext):
-                file_contents = archive.read(item)
-        if(file_contents):
-            return(file_contents)
+                output = archive.read(item)
+
+        return(output)
 
 
-# zip updated function code
+# Zip updated function code, return binary output of zip
 def zip_new_function(code):
         c = code.decode()
         fn = "lambda_function" + ext
@@ -99,38 +99,39 @@ def zip_new_function(code):
         return(output)
 
 
-# Get AWS Lambda functions with .py extentions on the designated repo above
+# Get AWS Lambda functions with (ext = ) extentions on the designated git repo
 def get_functions_masters():
     string = giturl + user + targetRepo + gitContent + scripts
     repo = requests.get(string)
-    GFList = []
+    output = []
     if(repo.ok):
         repoItem = json.loads(repo.content)
         for script in repoItem:
             for item in script:
                 if item == "name" and script[item].endswith(ext):
-                    GFList.append(script[item].split('.')[0])
+                    output.append(script[item].split('.')[0])
     else:
-        print("ERROR!!!!\n" + str(repo))
+        print("ERROR READING REPO!!!!\n" + str(repo))
 
-    return(GFList)
+    return(output)
 
 
-# get contents of a specified git object, two types are the script and perms
+# Get raw contents of a specified git object, two types are script and perms
 def get_git_contents(fname, objs):
+    output = ''
     if objs == scripts:
         string = gitraw + user + targetRepo + rawBranch + objs + fname + ext
     if objs == perms:
         string = gitraw + user + targetRepo + rawBranch + objs + fname + IAMext
     repo = requests.get(string)
     if(repo.ok):
-        file_contents = repo.content
-        return(file_contents)
+        output = repo.content
+        return(output)
     else:
         return("CAN'T READ " + fname)
 
 
-# get all role names on the aws account
+# Get all role names on the aws account
 def get_IAM_role_names():
     output = []
     roles = IAM_client.list_roles()
@@ -140,7 +141,7 @@ def get_IAM_role_names():
     return(output)
 
 
-# get IAM policy contents
+# Get IAM policy contents
 def get_IAM_policy_contents(pname):
     ARN = baseARN + 'policy/' + pname
     try:
@@ -153,7 +154,7 @@ def get_IAM_policy_contents(pname):
     return(output)
 
 
-# get all owned policy names
+# Get the names of all owned IAM policies
 def get_IAM_policy_names():
     output = []
     pols = IAM_client.list_policies(Scope='Local')
@@ -163,7 +164,7 @@ def get_IAM_policy_names():
     return(output)
 
 
-# get the policy names attached to a role
+# Get the IAM policy names attached to a role
 def get_IAM_role_policies(rname):
     all_policies = IAM_client.list_attached_role_policies(RoleName=rname)
     output = []
@@ -173,7 +174,7 @@ def get_IAM_role_policies(rname):
     return(output)
 
 
-# creates a IAM policy with pol contents/json
+# Create an IAM policy provided (pol), which is its' contents/json
 def create_IAM_policy(pol):
     pname = pol['Statement'][0]['Sid']
     pdesc = str(pname) + " - (Computatis Synced)"
@@ -197,7 +198,7 @@ def update_IAM_policy(pol):
                                             )
 
 
-# create IAM role, given a name and policy, and create policy if missing
+# Create IAM role, given a name and policy json, create policy if missing
 def create_IAM_role(rname, pol):
     pname = pol['Statement'][0]['Sid']
     ARN = baseARN + 'policy/' + pname
@@ -213,7 +214,7 @@ def create_IAM_role(rname, pol):
     }
   ]
 }"""
-    rdesc = "Allows lambda function " + rname + " to run (Computatis Synced)"
+    rdesc = "Allows lambda function " + rname + " to run - (Computatis Synced)"
     IAMP = get_IAM_policy_names()
 
     if pname not in IAMP:
@@ -231,13 +232,13 @@ def create_IAM_role(rname, pol):
     IAM_client.attach_role_policy(RoleName=rname, PolicyArn=ARN)
 
 
-# update an existing IAM role
+# Update an existing IAM role
 def update_role(rname, pname):
     ARN = baseARN + 'policy/' + pname
     IAM_client.attach_role_policy(RoleName=rname, PolicyArn=ARN)
 
 
-# update the existing functions code from git source code supplied
+# Update the existing functions code from git source code supplied
 def sync_git_to_aws(fname, code):
     zc = zip_new_function(code)
     lambda_client.update_function_code(
@@ -247,7 +248,7 @@ def sync_git_to_aws(fname, code):
                                     )
 
 
-# create a new lambda function
+# Create a new lambda function
 def create_lambda_function(fname, code, policy):
     zc = zip_new_function(code)
     rname = "lambda-" + fname
@@ -266,7 +267,7 @@ def create_lambda_function(fname, code, policy):
                                 )
 
 
-# main
+# Main
 def lambda_handler(event, context):
     LambdaFunctions = get_available_functions()
     IAMRoles = get_IAM_role_names()
@@ -275,12 +276,14 @@ def lambda_handler(event, context):
     AWS_Lambdas = {}
     Git_Functions = {}
 
+    # Organize all Lambda functions on this AWS account, get their code content
     for i in LambdaFunctions:
         Loc = get_function_url(i)
         content = get_function_content(Loc)
         AWS_Lambdas[i] = {}
         AWS_Lambdas[i]['Code'] = content
 
+    # Organize all Git source code and IAM policies from 'user ='' repo
     for i in MasterIndex:
         GitContents = get_git_contents(i, scripts)
         IAMContents = get_git_contents(i, perms)
@@ -288,31 +291,26 @@ def lambda_handler(event, context):
         Git_Functions[i]['Code'] = GitContents
         Git_Functions[i]['IAM'] = IAMContents
 
+    # Cycle all the scripts from the Git repo, and then check they're on AWS
     for x in Git_Functions:
-        print("\n\n\n----------------[ Checking on function " + str(x) + " ]----------------")
         policy = json.loads(Git_Functions[x]['IAM'].decode())
         policyName = policy['Statement'][0]['Sid']
         rolename = "lambda-" + x
 
         # Look for roles matching this rolename
         if rolename in IAMRoles:
-            RolePermissions = get_IAM_role_policies(rolename)
-            print("\n  [ Role: " + rolename + " already exists! ]")
             # look at permissions on role
-            print("          Role Permissions:")
+            RolePermissions = get_IAM_role_policies(rolename)
 
             # no permissions attached to role
             if not RolePermissions:
-                print("          -> No permissions attached to role ")
                 if policyName not in IAMPolicies:
-                    print("          -> No IAM policy named : " + str(policyName))
                     create_IAM_policy(policy)
                 update_role(rolename, policyName)
 
-            # cycle role permissions
+            # cycle role permissions, update or create policy as needed
             else:
                 if policyName in RolePermissions:
-                    print("          ->" + policyName + " policy in " + rolename + " permissions")
                     if policyName in IAMPolicies:
                         pd = get_IAM_policy_contents(policyName)
                         if pd != policy:
@@ -321,27 +319,21 @@ def lambda_handler(event, context):
                 else:
                     create_IAM_policy(policy)
                     update_role(rolename, policyName)
+
+        # Role not found, create new role
         else:
-            print(" >>> Creating role: " + rolename + " <<<")
             create_IAM_role(rolename, policy)
-            print(" >>> Done with role " + rolename + " creation <<<")
+
+        # Check if Lambda function exists, update code if diff from Git source
         if x in AWS_Lambdas:
-            if AWS_Lambdas[x]['Code'] == Git_Functions[x]['Code']:
-                print("\n  [ Function: " + x + " already on AWS account and code matches! ]\n")
-            else:
-                print("  [ CODE NOT UP TO DATE FOR : " + x + " ]")
-                print("Git code:\n" + str(Git_Functions[x]['Code'].decode()))
-                print("AWS code:\n" + str(AWS_Lambdas[x]['Code'].decode()))
+            if AWS_Lambdas[x]['Code'] != Git_Functions[x]['Code']:
                 sync_git_to_aws(x, Git_Functions[x]['Code'])
-                print("\n")
+
+        # Lambda function isn't on AWS account, create new lambda function
         if x not in AWS_Lambdas:
             create_lambda_function(x, Git_Functions[x]['Code'], policy)
-            print("  - Lambda : " + x + " is missing from AWS Lambda list!\n")
-        print("---------------- END RUN ON FUNCTION " + x + "----------------")
 
     # TODO
-    # - remove old permissions if name changes on file
-    # - cleanup old functions or old roles?
     # - if code isn't on this AWS account:
     #       - publish version/create alias?
     # report changes and additions / extra meta?
