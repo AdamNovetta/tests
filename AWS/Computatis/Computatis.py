@@ -47,7 +47,7 @@ def get_available_functions():
     AvailableFunctions = lambda_client.list_functions()['Functions']
     for function in AvailableFunctions:
         if function['FunctionName'] != ProgramName:
-            AFList.append(function['FunctionName'])
+            output.append(function['FunctionName'])
 
     return(output)
 
