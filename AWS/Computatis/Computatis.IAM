@@ -1,0 +1,38 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowComputatis",
+            "Effect": "Allow",
+            "Action": [
+                "lambda:CreateFunction",
+                "iam:GetPolicyVersion",
+                "iam:DeletePolicy",
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:PassRole",
+                "iam:DetachRolePolicy",
+                "iam:ListAttachedRolePolicies",
+                "iam:DeleteRolePolicy",
+                "iam:CreatePolicyVersion",
+                "iam:ListRolePolicies",
+                "iam:ListPolicies",
+                "lambda:ListFunctions",
+                "iam:GetPolicy",
+                "lambda:GetFunction",
+                "lambda:UpdateFunctionConfiguration",
+                "iam:UpdateRoleDescription",
+                "iam:ListRoles",
+                "lambda:UpdateAlias",
+                "iam:CreatePolicy",
+                "lambda:UpdateFunctionCode",
+                "lambda:PublishVersion",
+                "iam:DeletePolicyVersion",
+                "lambda:CreateAlias",
+                "iam:SetDefaultPolicyVersion"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
