@@ -344,7 +344,6 @@ def lambda_handler(event, context):
         if x not in AWS_Lambdas:
             create_lambda_function(x, Git_Functions[x]['Code'], policy)
 
-
     # TODO
     # - remove old permissions if name changes on file
     # - cleanup old functions or old roles?
