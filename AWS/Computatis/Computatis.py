@@ -119,16 +119,17 @@ def get_functions_masters():
 # Get raw contents of a specified git object, two types are script and perms
 def get_git_contents(fname, objs):
     output = ''
+    base_string = gitraw + user + targetRepo + rawBranch + objs + fname
     if objs == scripts:
-        string = gitraw + user + targetRepo + rawBranch + objs + fname + ext
+        string = base_string + ext
     if objs == perms:
-        string = gitraw + user + targetRepo + rawBranch + objs + fname + IAMext
+        string = base_string + IAMext
     repo = requests.get(string)
     if(repo.ok):
         output = repo.content
         return(output)
     else:
-        return("CAN'T READ " + fname)
+        return("CAN'T READ: " + fname)
 
 
 # Get all role names on the aws account
