@@ -9,96 +9,96 @@ from datetime import datetime
 
 
 # Program meta
-vers = "1.2"
-ProgramName = "Effingo"
-Desc = "Takes Daily/Weekly/Monthly snapshots of EBS volumes"
+vers = "1.3"
+program_name = "Effingo"
+desc = "Takes Daily/Weekly/Monthly snapshots of EBS volumes"
 
 
 # Output logging - default WARNING. Set to INFO for full output in cloudwatch
 def logging_output():
     logging.basicConfig(level=logging.INFO)
-    StartMessage = 'Started taking %(period)s snapshots at %(date)s' % {
+    start_message = 'Started taking %(period)s snapshots at %(date)s' % {
         'period': period,
         'date': datetime.today().strftime('%d-%m-%Y %H:%M:%S')
     }
-    message += StartMessage + "\n\n"
-    logging.info(StartMessage)
+    message += start_message + "\n\n"
+    logging.info(start_message)
 
 
 # Define boto3 connections/variables
-EC2RegionName = "us-east-1"
-LClient = boto3.client('lambda')
-ec2 = boto3.resource("ec2", region_name=EC2RegionName)
-EC2Client = boto3.client('ec2')
+region_name = "us-east-1"
+lambda_client = boto3.client('lambda')
+ec2 = boto3.resource("ec2", region_name=region_name)
+EC2_client = boto3.client('ec2')
 
 
 # Function to relay calls to other Lambda functions
-def LR(function_name, payload=None):
+def lambda_relay(function_name, payload=None):
 
     if payload is not None:
         pload = {"FunctionName": function_name, "FunctionPayload": payload}
     else:
         pload = {"FunctionName": function_name}
 
-    LambdaRelayOutput = LClient.invoke(
+    lambda_output = lambda_client.invoke(
             FunctionName='lambda_function_relay',
             InvocationType='RequestResponse',
             Payload=json.dumps(pload)
             )
-    data = LambdaRelayOutput['Payload'].read().decode()
+    data = lambda_output['Payload'].read().decode()
     return(data)
 
 
 # Main function of the script
 def lambda_handler(event, context):
-    MyAWSID = LR("get_account_ID")[1:-1]
-    AccountName = LR("get_account_name")[1:-1]
-    SNSTopicName = "auto-snapshots"
-    SNSARN = "arn:aws:sns:" + EC2RegionName + ":" + MyAWSID + ":" + SNSTopicName
-    deletelist = []
-    VolumeTags = ['DailySnapshot', 'WeeklySnapshot', 'MonthlySnapshot']
+    AWS_ID = lambda_relay("get_account_ID")[1:-1]
+    account_name = lambda_relay("get_account_name")[1:-1]
+    topic_name = "auto-snapshots"
+    SNS_ARN = "arn:aws:sns:" + region_name + ":" + AWS_ID + ":" + topic_name
+    del_list = []
+    v_tags = ['DailySnapshot', 'WeeklySnapshot', 'MonthlySnapshot']
     message = errmsg = ""
-    TotalCreates = TotalDeletes = CountErrors = CountSuccess = CountTotal = 0
+    t_created = t_deleted = count_err = count_success = count_total = 0
     # Number of days to keep snapshot types
-    KeepWeek = 3
-    KeepDay = 5
-    KeepMonth = 2
+    keep_week = 3
+    keep_day = 5
+    keep_month = 2
     today = datetime.today()
     day = today.strftime('%-d')
     month = today.strftime('%-m')
     now = datetime.weekday(today)
-    DaysInMonth = calendar.mdays[int(month)]
-    tasks = VolumeTags
+    days_in_month = calendar.mdays[int(month)]
+    tasks = v_tags
 
     # get the 'Name' tag out of the batch of tags sent
     def get_tag_name(TAGS):
-        NameTag = ''
+        name_tag = ''
         if TAGS is not None:
             for tags in TAGS:
                 if tags["Key"] == 'Name':
-                    NameTag = tags["Value"]
+                    name_tag = tags["Value"]
         else:
-            NameTag = UnNamedLabel
-        return NameTag
+            name_tag = "[ no name ]"
+        return name_tag
 
     # Get the tags of a reouse that's passed to the func
     def get_resource_tags(resources):
-        ResourceID = resources.id
-        ResourceTags = {}
-        if ResourceID:
-            TagFilter = [{
+        resource_ID = resources.id
+        resource_tags = {}
+        if resource_ID:
+            tag_filter = [{
                 'Name': 'resource-id',
-                'Values': [ResourceID]
+                'Values': [resource_ID]
             }]
-            tags = EC2Client.describe_tags(Filters=TagFilter)
+            tags = EC2_client.describe_tags(Filters=tag_filter)
             for tag in tags['Tags']:
                 key = tag['Key']
                 value = tag['Value']
                 # Tags starting with 'aws:' are reserved for internal use
-                # also don't double-tag snapshots with the scripts VolumeTags
-                if not key.startswith("aws:") and str(key) not in str(VolumeTags):
-                    ResourceTags[key] = value
-        return(ResourceTags)
+                # also don't double-tag snapshots with the scripts v_tags
+                if not key.startswith("aws:") and str(key) not in str(v_tags):
+                    resource_tags[key] = value
+        return(resource_tags)
 
     # Set the tags of the resource from the tags passed to the func
     def set_resource_tags(resource, tags):
@@ -123,51 +123,51 @@ def lambda_handler(event, context):
     if 5 != now:
         tasks.remove('WeeklySnapshot')
     # Only run the 'MonthlySnapshot' on the last day of the month
-    if int(day) != DaysInMonth:
+    if int(day) != days_in_month:
         tasks.remove('MonthlySnapshot')
     # run applicable tasks after filtering
     for task in tasks:
         period = ''
-        TagType = task
-        if TagType == 'DailySnapshot':
+        tag_type = task
+        if tag_type == 'DailySnapshot':
             period = 'day'
-            DateSuffix = today.strftime('%a')
-        elif TagType == 'WeeklySnapshot':
+            date_suffix = today.strftime('%a')
+        elif tag_type == 'WeeklySnapshot':
             period = 'week'
-            DateSuffix = today.strftime('%U')
-        elif TagType == 'MonthlySnapshot':
+            date_suffix = today.strftime('%U')
+        elif tag_type == 'MonthlySnapshot':
             period = 'month'
-            DateSuffix = month
-        print("\nRunning snapshots job [ "+period+" ] tagged: "+TagType+"\n")
+            date_suffix = month
+        print("\nMaking snapshots for [ "+period+" ] tagged: " + tag_type+"\n")
         vols = ec2.volumes.filter(Filters=[{
-                                            'Name': 'tag:' + TagType,
+                                            'Name': 'tag:' + tag_type,
                                             'Values': ["True"]
                                             }])
         for vol in vols:
-            VolumeName = get_tag_name(vol.tags)
-            print("Taking snapshot of: "+VolumeName+"   ID: "+vol.id + "\n")
+            v_name = get_tag_name(vol.tags)
+            print("Taking snapshot of: " + v_name + "   ID: " + vol.id + "\n")
             try:
-                CountTotal += 1
+                count_total += 1
                 logging.info(vol)
-                TagsVolume = get_resource_tags(vol)
+                tags_volume = get_resource_tags(vol)
 
                 description = str(period) + '_snapshot ' + str(vol.id)
-                description += '_' + str(period) + '_' + str(DateSuffix)
+                description += '_' + str(period) + '_' + str(date_suffix)
                 description += ' by Lambda Effingo script at '
                 description += str(today.strftime('%d-%m-%Y %H:%M:%S'))
                 try:
-                    CurrentSnap = vol.create_snapshot(Description=description)
-                    set_resource_tags(CurrentSnap, TagsVolume)
+                    current_snap = vol.create_snapshot(Description=description)
+                    set_resource_tags(current_snap, tags_volume)
 
-                    SuccessMessage = "Snapshot created with description: "
-                    SuccessMessage += str(description) + " and tags: "
-                    SuccessMessage += str(TagsVolume)
+                    success_msg = "Snapshot created with description: "
+                    success_msg += str(description) + " and tags: "
+                    success_msg += str(tags_volume)
 
-                    print(str(SuccessMessage))
-                    logging.info(str(SuccessMessage))
-                    TotalCreates += 1
+                    print(str(success_msg))
+                    logging.info(str(success_msg))
+                    t_created += 1
 
-                except BaseException as e:
+                except e as BaseException:
                     print("Unexpected error:", sys.exc_info()[0])
                     logging.error(e)
                     pass
@@ -177,76 +177,76 @@ def lambda_handler(event, context):
                     )
 
                 snapshots = vol.snapshots.all()
-                deletelist = []
+                del_list = []
                 for snap in snapshots:
                     sdesc = str(snap.description)
                     if (sdesc.startswith('week_snapshot') and period == 'week'):
-                        deletelist.append(snap)
+                        del_list.append(snap)
                     elif (sdesc.startswith('day_snapshot') and period == 'day'):
-                        deletelist.append(snap)
+                        del_list.append(snap)
                     elif (sdesc.startswith('month_snapshot') and period == 'month'):
-                        deletelist.append(snap)
+                        del_list.append(snap)
                     else:
                         logging.info(
-                            ' Skipping, not added to deletelist: ' + sdesc
+                            ' Skipping, not added to delete list: ' + sdesc
                             )
-                for snap in deletelist:
+                for snap in del_list:
                     logging.info(snap)
                     logging.info(snap.start_time)
 
                 def date_compare(snap1):
                     return snap1.start_time
 
-                deletelist.sort(key=date_compare)
+                del_list.sort(key=date_compare)
 
                 if period == 'day':
-                    keep = KeepDay
+                    keep = keep_day
                 elif period == 'week':
-                    keep = KeepWeek
+                    keep = keep_week
                 elif period == 'month':
-                    keep = KeepMonth
-                delta = len(deletelist) - keep
+                    keep = keep_month
+                delta = len(del_list) - keep
                 for i in range(delta):
-                    DeleteMessage = ' Deleting snapshot '
-                    DeleteMessage += str(deletelist[i].description)
-                    logging.info(DeleteMessage)
-                    deletelist[i].delete()
-                    TotalDeletes += 1
+                    del_message = ' Deleting snapshot '
+                    del_message += str(del_list[i].description)
+                    logging.info(del_message)
+                    del_list[i].delete()
+                    t_deleted += 1
                 time.sleep(3)
-            except:
+            except e as BaseException:
                 print("[LATE STAGE] Unexpected error:", sys.exc_info())
                 logging.error('Error in processing volume with id: ' + vol.id)
                 errmsg += 'Error in processing volume with id: ' + vol.id
-                CountErrors += 1
+                count_err += 1
             else:
-                CountSuccess += 1
+                count_success += 1
 
     result = '\nFinished making snapshots at '
     result += str(datetime.today().strftime('%d-%m-%Y %H:%M:%S'))
-    result += ' with ' + str(CountSuccess) + ' snapshots of ' + str(CountTotal)
-    result += ' possible.\n\n'
+    result += ' with ' + str(count_success) + ' snapshots of '
+    result += str(count_total) + ' possible.\n\n'
 
     message += result
 
-    message += "\nTotal snapshots created: " + str(TotalCreates)
-    message += "\nTotal snapshots errors: " + str(CountErrors)
-    message += "\nTotal snapshots deleted: " + str(TotalDeletes) + "\n"
+    message += "\nTotal snapshots created: " + str(t_created)
+    message += "\nTotal snapshots errors: " + str(count_err)
+    message += "\nTotal snapshots deleted: " + str(t_deleted) + "\n"
 
     print('\n' + message + '\n')
 
-    if SNSARN:
+    if SNS_ARN:
         if errmsg:
-            ErrorSNSSubject = AccountName + ' - Error with AWS Snapshots'
-            ErrorMessage = 'Error in processing volumes: ' + errmsg,
-            LR("send_sns_message", {
-                                'SNSARN': SNSARN,
-                                'SNSMessage': ErrorMessage,
-                                'SNSSubject': ErrorSNSSubject
-                            })
-        SNSSubject = AccountName + ' - Finished AWS snapshotting'
-        LR("send_sns_message", {
-                            'SNSARN': SNSARN,
-                            'SNSMessage': message,
-                            'SNSSubject': SNSSubject
-                        })
+            err_SNS_subj = account_name + ' - Error with AWS Snapshots'
+            err_msg = 'Error in processing volumes: ' + errmsg,
+            lambda_relay("send_sns_message", {
+                                                'SNS_ARN': SNS_ARN,
+                                                'SNSMessage': err_msg,
+                                                'sns_subj': err_SNS_subj
+                                                })
+        sns_subj = account_name + ' - Finished AWS snapshotting'
+        lambda_relay("send_sns_message", {
+                                            'SNS_ARN': SNS_ARN,
+                                            'SNSMessage': message,
+                                            'sns_subj': sns_subj
+                                            })
     logging.info(result)
