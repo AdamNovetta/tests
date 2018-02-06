@@ -2,7 +2,7 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "DescribeStuff",
+            "Sid": "DescribeEC2Items",
             "Effect": "Allow",
             "Action": [
                 "ec2:DescribeInstanceAttribute",
