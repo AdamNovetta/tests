@@ -26,7 +26,7 @@
                 "iam:UpdateLoginProfile"
             ],
             "Resource": [
-                "arn:aws:iam::***ACCOUNT-ID***:user/${aws:username}"
+                "arn:aws:iam::ACCOUNT-ID:user/${aws:username}"
             ]
         },
         {
@@ -37,8 +37,8 @@
                 "iam:ListMFADevices"
             ],
             "Resource": [
-                "arn:aws:iam::***ACCOUNT-ID***:mfa/*",
-                "arn:aws:iam::***ACCOUNT-ID***:user/${aws:username}"
+                "arn:aws:iam::ACCOUNT-ID:mfa/*",
+                "arn:aws:iam::ACCOUNT-ID:user/${aws:username}"
             ]
         },
         {
@@ -52,15 +52,58 @@
                 "iam:ResyncMFADevice"
             ],
             "Resource": [
-                "arn:aws:iam::***ACCOUNT-ID***:mfa/*",
-                "arn:aws:iam::***ACCOUNT-ID***:user/${aws:username}"
+                "arn:aws:iam::ACCOUNT-ID:mfa/*",
+                "arn:aws:iam::ACCOUNT-ID:user/${aws:username}"
             ]
         },
         {
-            "Sid": "DoNotAllowAnythingOtherThanAboveUnlessMFAd",
+            "Sid": "DenyEverythingExceptForBelowUnlessMFAd",
             "Effect": "Deny",
-            "NotAction": "iam:*",
+            "NotAction": [
+                "iam:ListVirtualMFADevices",
+                "iam:ListMFADevices",
+                "iam:ListUsers",
+                "iam:ListAccountAliases",
+                "iam:CreateVirtualMFADevice",
+                "iam:DeactivateMFADevice",
+                "iam:DeleteVirtualMFADevice",
+                "iam:EnableMFADevice",
+                "iam:ResyncMFADevice",
+                "iam:ChangePassword",
+                "iam:CreateLoginProfile",
+                "iam:DeleteLoginProfile",
+                "iam:GetAccountPasswordPolicy",
+                "iam:GetAccountSummary",
+                "iam:GetLoginProfile",
+                "iam:UpdateLoginProfile"
+            ],
             "Resource": "*",
+            "Condition": {
+                "Null": {
+                    "aws:MultiFactorAuthAge": "true"
+                }
+            }
+        },
+        {
+            "Sid": "DenyIamAccessToOtherAccountsUnlessMFAd",
+            "Effect": "Deny",
+            "Action": [
+                "iam:CreateVirtualMFADevice",
+                "iam:DeactivateMFADevice",
+                "iam:DeleteVirtualMFADevice",
+                "iam:EnableMFADevice",
+                "iam:ResyncMFADevice",
+                "iam:ChangePassword",
+                "iam:CreateLoginProfile",
+                "iam:DeleteLoginProfile",
+                "iam:GetAccountSummary",
+                "iam:GetLoginProfile",
+                "iam:UpdateLoginProfile"
+            ],
+            "NotResource": [
+                "arn:aws:iam::ACCOUNT-ID:mfa/${aws:username}",
+                "arn:aws:iam::ACCOUNT-ID:user/${aws:username}"
+            ],
             "Condition": {
                 "Null": {
                     "aws:MultiFactorAuthAge": "true"
