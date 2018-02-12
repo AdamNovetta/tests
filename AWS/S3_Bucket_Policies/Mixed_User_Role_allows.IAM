@@ -1,0 +1,36 @@
+{
+    "Version": "2012-10-17",
+    "Id": "Policy1499797116061",
+    "Statement": [
+        {
+            "Sid": "Allow IAM Role",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::ACCOUNT-ID:role/ROLE-NAME-HERE"
+            },
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::MY-BUCKET",
+                "arn:aws:s3:::MY-BUCKET/*"
+            ]
+        },
+        {
+            "Sid": "Deny all except listed RoleIDs and User IDs",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::MY-BUCKET",
+                "arn:aws:s3:::MY-BUCKET/*"
+            ],
+            "Condition": {
+                "StringNotLike": {
+                    "aws:userid": [
+                        "LONG-ROLE-ID-GOES-HERE:*",
+                        "NORMAL-USER-ID-GOES-HERE"
+                    ]
+                }
+            }
+        }
+    ]
+}
