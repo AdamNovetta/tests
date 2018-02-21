@@ -26,7 +26,7 @@
                 "iam:UpdateLoginProfile"
             ],
             "Resource": [
-                "arn:aws:iam::ACCOUNT-ID:user/${aws:username}"
+                "arn:aws:iam::*:user/${aws:username}"
             ]
         },
         {
@@ -37,8 +37,8 @@
                 "iam:ListMFADevices"
             ],
             "Resource": [
-                "arn:aws:iam::ACCOUNT-ID:mfa/*",
-                "arn:aws:iam::ACCOUNT-ID:user/${aws:username}"
+                "arn:aws:iam::*:mfa/*",
+                "arn:aws:iam::*:user/${aws:username}"
             ]
         },
         {
@@ -52,8 +52,8 @@
                 "iam:ResyncMFADevice"
             ],
             "Resource": [
-                "arn:aws:iam::ACCOUNT-ID:mfa/*",
-                "arn:aws:iam::ACCOUNT-ID:user/${aws:username}"
+                "arn:aws:iam::*:mfa/*",
+                "arn:aws:iam::*:user/${aws:username}"
             ]
         },
         {
@@ -101,8 +101,8 @@
                 "iam:UpdateLoginProfile"
             ],
             "NotResource": [
-                "arn:aws:iam::ACCOUNT-ID:mfa/${aws:username}",
-                "arn:aws:iam::ACCOUNT-ID:user/${aws:username}"
+                "arn:aws:iam::*:mfa/${aws:username}",
+                "arn:aws:iam::*:user/${aws:username}"
             ],
             "Condition": {
                 "Null": {
