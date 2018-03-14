@@ -36,7 +36,7 @@ def LR(function_name, payload=None):
 
 # Getting the Account ID needed to filter snapshots/AMIs
 MyAWSID = LR("get_account_ID")[1:-1]
-OIDS = [MyAWSID]
+OIDS = [str(MyAWSID)]
 
 
 # Label applied to anything not named and un-attached
@@ -51,7 +51,7 @@ GenericSnapshot = "Created"
 def log_output(data):
     # Set below to false to disable logging output
     ENABLE_LOGGING = True
-    output = d = ''
+    output = d = moreData = ''
     logger = logging.getLogger()
     # set below to DEBUG or other to see more errors in event log/console
     logger.setLevel(logging.WARNING)

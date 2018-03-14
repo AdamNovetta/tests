@@ -350,5 +350,6 @@ def lambda_handler(event, context):
     # - cleanup old functions or old roles?
     # - if code isn't on this AWS account:
     #       - publish version/create alias?
-    # report changes and additions / extra meta?
+    #       - handle 'programs' vs support functinos differently
+    # report changes and additions / extra meta - email
     # error outputs on failure for any function/steps
