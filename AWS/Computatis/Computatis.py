@@ -275,7 +275,8 @@ def create_lambda_function(fname, code, policy):
                                     Description=rdesc,
                                     Timeout=190,
                                     MemorySize=128,
-                                    Publish=True
+                                    #Publish=True
+                                    # Publish seems to not work on first run...
                                 )
 
 
@@ -352,4 +353,5 @@ def lambda_handler(event, context):
     #       - publish version/create alias?
     #       - handle 'programs' vs support functinos differently
     # report changes and additions / extra meta - email
+    # check updated IAM permissions even if Role+Function are good
     # error outputs on failure for any function/steps
