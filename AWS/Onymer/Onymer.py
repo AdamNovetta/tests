@@ -18,6 +18,7 @@ EC2Client = boto3.client('ec2')
 LClient = boto3.client('lambda')
 
 
+# Lambda Relay function
 def LR(function_name, payload=None):
 
     if payload is not None:
@@ -96,19 +97,6 @@ class name_counter:
 
         def reset(self):
                 self.number = 0
-
-
-# Finds the AWS Tag:Name.value in a dict of tags
-def get_tag_name(TAGS):
-    # returns the Name|tag:value given an instanceID
-    NameTag = ''
-    if TAGS is not None:
-        for tags in TAGS:
-            if tags["Key"] == 'Name':
-                NameTag = tags["Value"]
-    else:
-        NameTag = UnNamedLabel
-    return NameTag
 
 
 # Main function
@@ -212,7 +200,7 @@ def lambda_handler(event, context):
         SnapshotTags = ThisSnapshot.tags
         Dob = ThisSnapshot.start_time
         Dob = Dob.strftime("%m/%d/%y")
-        SnapshotName = get_tag_name(SnapshotTags)
+        SnapshotName = LR("get_name_tag", {"Tags": SnapshotTags})[1:-1]
         SnapVolume = ThisSnapshot.volume_id
         if SnapshotName.startswith(UnNamedLabel):
             if Desc.startswith(GenericSnapshot):
@@ -220,7 +208,8 @@ def lambda_handler(event, context):
                     OriginalVolume = ec2.Volume(SnapVolume).id
                     if OriginalVolume is not None:
                         try:
-                            NewSnapN = get_tag_name(ec2.Volume(SnapVolume).tags)
+                            vts = ec2.Volume(SnapVolume).tags
+                            NewSnapN = LR("get_name_tag", {"Tags": vts})[1:-1]
                             logData['proc'] = " Labeling SnapID: " + SnapID
                             logData['data'] = " as  " + NewSnapN
                             logData['state'] = "success"
@@ -272,7 +261,7 @@ def lambda_handler(event, context):
         ImageNewName = AMIName
         ImageTags = ThisImage.tags
         DOB = ThisImage.creation_date
-        ImageName = get_tag_name(ImageTags)
+        ImageName = LR("get_name_tag", {"Tags": ImageTags})[1:-1]
         if ImageName.startswith(UnNamedLabel) or len(ImageName) == 0:
             logData['proc'] = "Labeling Image: " + ImageId + " with"
             logData['data'] = AMIName + "current name: " + ImageName
