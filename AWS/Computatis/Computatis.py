@@ -112,7 +112,8 @@ def get_functions_masters():
                     output.append(script[item].split('.')[0])
     else:
         print("ERROR READING REPO!!!!\n" + str(repo))
-
+    print("[ Found: " + str(len(output)) + " scripts ]")
+    print("[ REPO: " + string + " ]")
     return(output)
 
 
@@ -275,7 +276,7 @@ def create_lambda_function(fname, code, policy):
                                     Description=rdesc,
                                     Timeout=190,
                                     MemorySize=128,
-                                    #Publish=True
+                                    # Publish=True
                                     # Publish seems to not work on first run...
                                 )
 
@@ -296,7 +297,7 @@ def lambda_handler(event, context):
         AWS_Lambdas[i] = {}
         AWS_Lambdas[i]['Code'] = content
 
-    # Organize all Git source code and IAM policies from 'user ='' repo
+    # Organize all Git source code and IAM policies from 'user ='' github repo
     for i in MasterIndex:
         GitContents = get_git_contents(i, scripts)
         IAMContents = get_git_contents(i, perms)
@@ -304,8 +305,10 @@ def lambda_handler(event, context):
         Git_Functions[i]['Code'] = GitContents
         Git_Functions[i]['IAM'] = IAMContents
 
+
     # Cycle all the scripts from the Git repo, and then check they're on AWS
     for x in Git_Functions:
+        print("[ Checking: " + x + " ]")
         policy = json.loads(Git_Functions[x]['IAM'].decode())
         policyName = policy['Statement'][0]['Sid']
         rolename = "lambda-" + x
@@ -319,6 +322,7 @@ def lambda_handler(event, context):
             if not RolesPermissions:
                 if policyName not in IAMPolicies:
                     create_IAM_policy(policy)
+                    print(" [ + ] - Added: " + policyName + " policy")
                 update_role(rolename, policyName)
 
             # Cycle role permissions, update or create policy as needed
@@ -329,13 +333,19 @@ def lambda_handler(event, context):
                         if pd != policy:
                             update_IAM_policy(policy)
                             update_role(rolename, policyName)
+                            print(" [ + ] - Updated: " + rolename + " role, " +
+                             policyName + " policy")
                 else:
                     create_IAM_policy(policy)
+                    print("  [ + ] - Added: " + policyName + " policy")
                     update_role(rolename, policyName)
+                    print(" [ + ] - Updated: " + rolename + " role")
 
         # Role not found, create new role
         else:
             create_IAM_role(rolename, policy)
+            print(" [ + ] - Added: " + rolename + " role, " + policyName +
+                    " policy")
 
         # Check if Lambda function exists, update code if diff from Git source
         if x in AWS_Lambdas:
@@ -345,6 +355,7 @@ def lambda_handler(event, context):
         # Lambda function isn't on AWS account, create new lambda function
         if x not in AWS_Lambdas:
             create_lambda_function(x, Git_Functions[x]['Code'], policy)
+            print("[ + ] - Added: " + x + " lambda function")
 
     # TODO
     # - remove old permissions if name changes on file
