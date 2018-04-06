@@ -305,7 +305,6 @@ def lambda_handler(event, context):
         Git_Functions[i]['Code'] = GitContents
         Git_Functions[i]['IAM'] = IAMContents
 
-
     # Cycle all the scripts from the Git repo, and then check they're on AWS
     for x in Git_Functions:
         print("[ Checking: " + x + " ]")
@@ -333,8 +332,10 @@ def lambda_handler(event, context):
                         if pd != policy:
                             update_IAM_policy(policy)
                             update_role(rolename, policyName)
-                            print(" [ + ] - Updated: " + rolename + " role, " +
-                             policyName + " policy")
+                            print(
+                                    " [ + ] - Updated: " + rolename + " role, "
+                                    + policyName + " policy"
+                                    )
                 else:
                     create_IAM_policy(policy)
                     print("  [ + ] - Added: " + policyName + " policy")
@@ -344,8 +345,10 @@ def lambda_handler(event, context):
         # Role not found, create new role
         else:
             create_IAM_role(rolename, policy)
-            print(" [ + ] - Added: " + rolename + " role, " + policyName +
-                    " policy")
+            print(
+                    " [ + ] - Added: " + rolename + " role, " + policyName +
+                    " policy"
+                    )
 
         # Check if Lambda function exists, update code if diff from Git source
         if x in AWS_Lambdas:
