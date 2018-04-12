@@ -1,0 +1,46 @@
+4/11/18:
+[ Checking: get_account_name ]
+An error occurred (EntityAlreadyExists) when calling the CreateRole operation: Role with name lambda-get_account_name already exists.: EntityAlreadyExistsException
+Traceback (most recent call last):
+  File "/var/task/Computatis.py", line 347, in lambda_handler
+    create_IAM_role(rolename, policy)
+  File "/var/task/Computatis.py", line 241, in create_IAM_role
+    Description=rdesc
+  File "/var/runtime/botocore/client.py", line 314, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+  File "/var/runtime/botocore/client.py", line 612, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.errorfactory.EntityAlreadyExistsException: An error occurred (EntityAlreadyExists) when calling the CreateRole operation: Role with name lambda-get_account_name already exists.
+
+NEXT ERROR:
+
+{
+  "errorMessage": "An error occurred (EntityAlreadyExists) when calling the CreateRole operation: Role with name lambda-get_open_s3_bucket_permissions already exists.",
+  "errorType": "EntityAlreadyExistsException",
+  "stackTrace": [
+    [
+      "/var/task/Computatis.py",
+      347,
+      "lambda_handler",
+      "create_IAM_role(rolename, policy)"
+    ],
+    [
+      "/var/task/Computatis.py",
+      241,
+      "create_IAM_role",
+      "Description=rdesc"
+    ],
+    [
+      "/var/runtime/botocore/client.py",
+      314,
+      "_api_call",
+      "return self._make_api_call(operation_name, kwargs)"
+    ],
+    [
+      "/var/runtime/botocore/client.py",
+      612,
+      "_make_api_call",
+      "raise error_class(parsed_response, operation_name)"
+    ]
+  ]
+}
