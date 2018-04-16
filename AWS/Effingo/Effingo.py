@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import boto3
 import calendar
 import json
@@ -167,13 +167,13 @@ def lambda_handler(event, context):
                     logging.info(str(success_msg))
                     t_created += 1
 
-                except e as BaseException:
+                except Exception:
                     print("Unexpected error:", sys.exc_info()[0])
                     logging.error(e)
                     pass
 
                 print(
-                    "\n Deleting the old snapshots for volume" + vol.id + "\n"
+                    "\n Deleting the old snapshots for volume " + vol.id + "\n"
                     )
 
                 snapshots = vol.snapshots.all()
@@ -213,8 +213,8 @@ def lambda_handler(event, context):
                     del_list[i].delete()
                     t_deleted += 1
                 time.sleep(3)
-            except e as BaseException:
-                print("[LATE STAGE] Unexpected error:", sys.exc_info())
+            except Exception:
+                print("[LATE STAGE] Unexpected error: ", sys.exc_info())
                 logging.error('Error in processing volume with id: ' + vol.id)
                 errmsg += 'Error in processing volume with id: ' + vol.id
                 count_err += 1

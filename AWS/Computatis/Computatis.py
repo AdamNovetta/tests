@@ -369,3 +369,4 @@ def lambda_handler(event, context):
     # report changes and additions / extra meta - email
     # check updated IAM permissions even if Role+Function are good
     # error outputs on failure for any function/steps
+    # fix error: (EntityAlreadyExists) when calling the CreateRole operation
