@@ -28,7 +28,6 @@ def lambda_handler(event, context):
     old = ' <!>'
     delim = ','
     spacer = ' / '
-    column = 0
     today = datetime.now(timezone.utc)
     # All users in IAM
     AllIAMUsers = IAM_client.get_paginator('list_users')
@@ -107,7 +106,7 @@ def lambda_handler(event, context):
             if "no_information" not in Data['password_last_used']:
                 PasswordUsed = days_since(Data['password_last_used'])
             else:
-                PasswordUsed = "Not logged"
+                PasswordUsed = "Never logged in"
             PasswordChanged = days_since(Data['password_last_changed'])
         else:
             PasswordUsed = "N/A"
