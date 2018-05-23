@@ -21,6 +21,7 @@ logger.setLevel(logging.WARNING)
 IAM = boto3.resource('iam')
 IAM_client = boto3.client('iam')
 
+
 # Main
 def lambda_handler(event, context):
 
@@ -31,15 +32,6 @@ def lambda_handler(event, context):
     today = datetime.now(timezone.utc)
     # All users in IAM
     AllIAMUsers = IAM_client.get_paginator('list_users')
-    # All API keys
-    ALLAPIKeys = IAM_client.get_paginator('list_access_keys')
-
-    # Checks if column lenth needs to be increased
-    def length_check(check, col=column):
-        if len(check) > col:
-            col = len(check)
-
-        return(col)
 
     # Retuns days since an event
     def days_since(event_date):
@@ -79,15 +71,10 @@ def lambda_handler(event, context):
         credentials = '\n'.join(report.split('\n')[1:])
         fieldnames = report.split('\n')[0:1]
         fn = list(csv.reader(fieldnames, delimiter=','))[0]
-        #print(fn)
         reader = csv.DictReader(credentials.split('\n'), fn)
         for item in reader:
             all_users.append(json.dumps(item))
-            #print(item['user'])
-            #print(item['password_last_changed'])
 
-        #print("HERES ALL OF THEM: \n" + str(all_users))
-        #print("HERES the first user: " +str(json.loads(all_users[0])['user']))
         return(all_users)
 
     aws_users = parse_AWS_credential_report()
@@ -97,48 +84,53 @@ def lambda_handler(event, context):
 
         if "<root_account>" not in UserName:
             UserID = IAM.User(UserName).user_id
-        else:
-            UserID = "ROOT"
-
-        UserCreated = days_since(Data['user_creation_time'])
-        PasswordEnabled = Data['password_enabled']
-        if PasswordEnabled == "true":
-            if "no_information" not in Data['password_last_used']:
-                PasswordUsed = days_since(Data['password_last_used'])
+            UserCreated = days_since(Data['user_creation_time'])
+            PasswordEnabled = Data['password_enabled']
+            if PasswordEnabled == "true":
+                if "no_information" not in Data['password_last_used']:
+                    PasswordUsed = days_since(Data['password_last_used'])
+                else:
+                    PasswordUsed = "Not logged"
+                PasswordChanged = days_since(Data['password_last_changed'])
             else:
-                PasswordUsed = "Never logged in"
-            PasswordChanged = days_since(Data['password_last_changed'])
-        else:
-            PasswordUsed = "N/A"
-            PasswordChanged = "N/A"
+                PasswordUsed = "Never"
+                PasswordChanged = "No password"
 
-        MFAActive = Data['mfa_active']
-        if MFAActive == "true" and "<root_account>" not in UserName:
-            MFADOB = days_since(IAM_client.list_mfa_devices(UserName=UserName)['MFADevices'][0]['EnableDate'])
-        else:
-            MFADOB = "No MFA"
+            MFAActive = Data['mfa_active']
+            if MFAActive == "true":
+                    MFADOB = days_since(IAM_client.list_mfa_devices(UserName=UserName)['MFADevices'][0]['EnableDate'])
+            else:
+                MFADOB = "No MFA"
 
-        APIKey1 = Data['access_key_1_active']
-        APIKey2 = Data['access_key_2_active']
+            APIKey1 = Data['access_key_1_active']
+            APIKey2 = Data['access_key_2_active']
 
-        if APIKey1 == "true":
-            APIKey1DOB = days_since(Data['access_key_1_last_rotated'])
+            if APIKey1 == "true":
+                APIKey1DOB = days_since(Data['access_key_1_last_rotated'])
+            else:
+                APIKey1DOB = "Not active"
+
             if "N/A" not in Data['access_key_1_last_used_date']:
                 APIKey1LastUsed = days_since(Data['access_key_1_last_used_date'])
             else:
-                APIKey1LastUsed = "N/A"
-        else:
-            APIKey1DOB = "N/A"
-            APIKey1LastUsed = "N/A"
+                APIKey1LastUsed = "Not used"
 
-        if APIKey2 == "true":
-            APIKey2DOB = days_since(Data['access_key_2_last_rotated'])
+            if APIKey2 == "true":
+                APIKey2DOB = days_since(Data['access_key_2_last_rotated'])
+            else:
+                APIKey2DOB = "Not active"
+
             if "N/A" not in Data['access_key_2_last_used_date']:
                 APIKey2LastUsed = days_since(Data['access_key_2_last_used_date'])
             else:
-                APIKey2LastUsed = "N/A"
+                APIKey2LastUsed = "Not used"
         else:
-            APIKey2DOB = "N/A"
-            APIKey2LastUsed = "N/A"
-
+            UserID = "Root Account"
+            PasswordUsed = days_since(Data['password_last_used'])
+            PasswordChanged = "Not tracked"
+            APIKey1LastUsed = APIKey2LastUsed = APIKey1DOB = APIKey2DOB = "-"
+            if Data['mfa_active'] == "true":
+                MFADOB = "MFA Active"
+            else:
+                MFADOB = "No MFA"
         print(UserName + delim + UserID + delim + PasswordUsed + delim + PasswordChanged + delim + APIKey1DOB + " / " + APIKey2DOB + delim + APIKey1LastUsed + " / " + APIKey2LastUsed + delim + MFADOB  )
