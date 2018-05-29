@@ -39,13 +39,15 @@ def account_name():
         AWSAccountName = str("".join(AccountAliases))
     return(str(AWSAccountName))
 
+
 # Setup the Sheets API
 store = file.Storage('./tmp/credentials.json')
 creds = store.get()
 service = build('sheets', 'v4', http=creds.authorize(Http()))
 # Target google sheet
 SPREADSHEET_ID = os.environ['Spreadsheet_ID']
-#RANGE_NAME = os.environ['Tab']
+# RANGE_NAME = os.environ['Tab']
+
 
 # Main
 def lambda_handler(event, context):
@@ -59,6 +61,7 @@ def lambda_handler(event, context):
     AllIAMUsers = IAM_client.get_paginator('list_users')
     values = []
     # Retuns days since an event
+
     def days_since(event_date):
         if isinstance(event_date, date):
             event = event_date
@@ -180,17 +183,11 @@ def lambda_handler(event, context):
                         UserID,
                         PasswordUsed,
                         PasswordChanged,
-                        APIKey1DOB + " / " + APIKey2DOB,
-                        APIKey1LastUsed + " / " + APIKey2LastUsed,
+                        APIKey1DOB + spacer + APIKey2DOB,
+                        APIKey1LastUsed + spacer + APIKey2LastUsed,
                         MFADOB
                         ])
 
-    BODY_VALUES = {
-        'values': values
-    }
-
-    valueInputOptionValue = 'USER_ENTERED'
-    
     def add_tab_if_missing(tab_name):
         try:
             spreadsheet_update_body = {
@@ -202,7 +199,7 @@ def lambda_handler(event, context):
                                                 }
                                             }]
                                         }
-                                            
+
             tab_request = service.spreadsheets().batchUpdate(
                                                 spreadsheetId=SPREADSHEET_ID,
                                                 body=spreadsheet_update_body
@@ -211,12 +208,12 @@ def lambda_handler(event, context):
             print(response1)
         except HttpError as err:
             print("Tab already exists")
-            
+
     AWS_account_name = account_name()
     RANGE_NAME = AWS_account_name.upper()
-
+    BODY_VALUES = {'values': values}
+    valueInputOptionValue = 'USER_ENTERED'
     add_tab_if_missing(RANGE_NAME)
-
 
     request = service.spreadsheets().values().update(
                                         spreadsheetId=SPREADSHEET_ID,
@@ -225,5 +222,5 @@ def lambda_handler(event, context):
                                         body=BODY_VALUES
                                         )
     response = request.execute()
-    
+
     print(response)
