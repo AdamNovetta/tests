@@ -29,7 +29,6 @@ IAM_client = boto3.client('iam')
 paginator = IAM_client.get_paginator('list_account_aliases')
 
 
-
 def account_name():
     for response in paginator.paginate():
         AccountAliases = response['AccountAliases']
@@ -155,7 +154,8 @@ def lambda_handler(event, context):
 
             if "N/A" not in Data['access_key_1_last_used_date']:
                 APIKey1LastUsed = days_since(
-                                            Data['access_key_1_last_used_date'])
+                                            Data['access_key_1_last_used_date']
+                                            )
             else:
                 APIKey1LastUsed = "Not used"
 
@@ -166,7 +166,8 @@ def lambda_handler(event, context):
 
             if "N/A" not in Data['access_key_2_last_used_date']:
                 APIKey2LastUsed = days_since(
-                                            Data['access_key_2_last_used_date'])
+                                            Data['access_key_2_last_used_date']
+                                            )
             else:
                 APIKey2LastUsed = "Not used"
         else:
