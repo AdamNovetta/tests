@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import json
 import boto3
 import logging
@@ -7,85 +7,58 @@ import datetime
 
 
 # Meta
-vers = "4.2"
+Vers = "4.3.2"
 ProgramName = "Onymer"
 Desc = "Tags EC2 assests (AMIs/EBSs/IFs/Snaps) based on EC2 Instance name tag"
 
+# Set below to False to disable logging output
+ENABLE_LOGGING = True
+
+
 # Define boto3 connections/variables
-region = "us-east-1"
-ec2 = boto3.resource("ec2", region_name=region)
-EC2Client = boto3.client('ec2')
-LClient = boto3.client('lambda')
-
-
-def LR(function_name, payload=None):
-
-    if payload is not None:
-        pload = {"FunctionName": function_name, "FunctionPayload": payload}
-    else:
-        pload = {"FunctionName": function_name}
-
-    LambdaRelayOutput = LClient.invoke(
-            FunctionName='lambda_function_relay',
-            InvocationType='RequestResponse',
-            Payload=json.dumps(pload)
-            )
-    data = LambdaRelayOutput['Payload'].read().decode()
-    return(data)
-
-
+ec2 = boto3.resource("ec2")
 # Getting the Account ID needed to filter snapshots/AMIs
-MyAWSID = LR("get_account_ID")[1:-1]
-OIDS = [MyAWSID]
+MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
+OIDS = [str(MyAWSID)]
 
 
 # Label applied to anything not named and un-attached
-UnattachedLabel = "- UNATTACHED - "
+unattached_label = "- UNATTACHED - "
 # Used as a temp variable to identify things without names
-UnNamedLabel = "(no name)"
+no_name_label = "(no name)"
 # Don't touch this unless AWS changes their labeling on marketplace snapshots!
-GenericSnapshot = "Created"
+generic_snapshot = "Created by CreateImage"
 
 
-# debug helper, has nothing to do with actual renaming process
-def log_output(data):
-    # Set below to false to disable logging output
-    ENABLE_LOGGING = True
-    output = d = ''
-    logger = logging.getLogger()
-    # set below to DEBUG or other to see more errors in event log/console
-    logger.setLevel(logging.WARNING)
+# Finds the AWS Tag:Name.value in a dict of tags
+def get_tag_name(all_tags):
+    if all_tags is not None:
+        for tags in all_tags:
+            if tags["Key"] == 'Name':
+                name_tag = tags["Value"]
+    else:
+        name_tag = no_name_label
+    return name_tag
 
-    state = data['state']
-    proc = data['proc']
-    count = str(data['count'])
-    if data['data']:
-        moreData = str(data['data'])
 
-    d = str(datetime.datetime.now())
+# get all the instances and their name tags to avoid multiple lookups
+class instance_ids:
+    
+    def __init__(self):
+        self.names = {}
+        instances = list(ec2.instances.all())
+        for i in instances:
+            self.names[i.id] = get_tag_name(ec2.Instance(i.id).tags)
 
-    if "starting" in state:
-        output = "[ " + ProgramName + " - " + vers + " | " + state + " " + proc
-        output += " process @ " + d + " ]"
-
-    if "success" in state:
-        output = "+ - " + proc + " - " + moreData
-
-    if "problem" in state:
-        output = "x - " + proc + " - " + moreData
-
-    if "ending" in state:
-        output = "[ <!> ____ Processed: " + count
-        output += " objects while running " + proc + " tasks _____ <!> ]"
-
-    if "error" in state:
-        output = " X ERROR X " + proc + " - " + moreData
-    if ENABLE_LOGGING:
-        print(output)
+    def name(self, id):
+        if id in self.names:
+            return(self.names[id])
+        else:
+            return(False)
 
 
 # Iteration counter for naming passes / debugging
-class name_counter:
+class counter:
         def __init__(self):
                 self.number = 0
                 self.total = 0
@@ -98,199 +71,184 @@ class name_counter:
                 self.number = 0
 
 
-# Finds the AWS Tag:Name.value in a dict of tags
-def get_tag_name(TAGS):
-    # returns the Name|tag:value given an instanceID
-    NameTag = ''
-    if TAGS is not None:
-        for tags in TAGS:
-            if tags["Key"] == 'Name':
-                NameTag = tags["Value"]
-    else:
-        NameTag = UnNamedLabel
-    return NameTag
+# logging output class
+class log_data:
 
+    # create blank logging matrix and add counter
+    def __init__(self):
+        self.state = "starting"
+        self.proc = ''
+        self.data = ''
+        self.count = counter()
 
+    def starting(self, process):
+        self.count.reset()
+        self.state = "starting"
+        self.proc = process
+        print_log(self)
+
+    def process(self, p, d, s):
+        self.state = s
+        self.proc = p
+        self.data = d
+        self.count.add()
+        print_log(self)
+
+    def ending(self, process):
+        self.state = "ending"
+        self.proc = process
+        print_log(self)
+
+    def finished(self):
+        self.state = "finished"
+        print_log(self)
+        
+    # debug helper, has nothing to do with actual renaming process
+    def __str__(self):
+        output = d = more_data = ''
+        logger = logging.getLogger()
+        # set below to DEBUG or INFO to see more errors in event log/console
+        logger.setLevel(logging.WARNING)
+    
+        count = str(self.count.number)
+        total = str(self.count.total)
+        
+        if self.data:
+            more_data = str(self.data)
+    
+        d = str(datetime.datetime.now())
+    
+        if "0" in self.state:
+            output = " X ERROR X " + self.proc + " - " + more_data
+        if "1" in self.state:
+            output = "+ - " + self.proc + " - " + more_data
+        if "starting" in self.state:
+            output = "[ " + ProgramName + " - " + Vers + " | " + self.state + " " + self.proc + " process @ " + d + " ]"
+        if "ending" in self.state:
+            output = "[ <!> ____ Processed: " + count + " objects during " + self.proc + " tasks _____ <!> ]\n"
+        if "finished" in self.state:
+            output = "\n[ <O> ____ Completed! Processed : " + total + " total objects in " + ProgramName + " run _____ <O> ]\n"
+
+        return(output)
+    
+def print_log(logger_name):
+    if ENABLE_LOGGING:
+        print(logger_name)
+    
 # Main function
 def lambda_handler(event, context):
-    # Logging and counting objects tracking vars
-    logData = {}
-    counter = name_counter()
-    logData['count'] = logData['proc'] = logData['state'] = logData['data'] = ''
-    logData['count'] = counter
+    ec2_instances = instance_ids()
+    log = log_data()
     # EBS renaming process
-    logData['state'] = "starting"
-    logData['proc'] = "volume rename"
-    log_output(logData)
-    for Volume in ec2.volumes.all():
-        VolumeName = LR("get_name_tag", {"Tags": Volume.tags})[1:-1]
-        if Volume.state == 'in-use':
-            InstanceID = Volume.attachments[0]['InstanceId']
-            InstanceMount = Volume.attachments[0]['Device']
-            InstanceName = LR("get_ec2_instance_name", {
-                                                    "Region": region,
-                                                    "EC2ID": InstanceID
-                                                        })[1:-1]
-            NewVolumeName = "[ " + InstanceName + " ]-" + InstanceMount
-            VolumesNewName = [{'Key': 'Name', 'Value': NewVolumeName}]
-            if VolumeName != NewVolumeName:
-                logData['proc'] = "volumeID " + Volume.id + " renamed"
-                logData['data'] = NewVolumeName
-                Volume.create_tags(Tags=VolumesNewName)
+    log.starting("volume rename")
+    for volume in ec2.volumes.all():
+        volume_name = get_tag_name(volume.tags)
+        if volume.state == 'in-use':
+            instance_id = volume.attachments[0]['InstanceId']
+            instance_mount = volume.attachments[0]['Device']
+            instance_name = ec2_instances.name(instance_id)
+            new_volume_name = "[ " + instance_name + " ]-" + instance_mount
+            volumes_new_name = [{'Key': 'Name', 'Value': new_volume_name}]
+            if volume_name != new_volume_name:
+                log.process("EBS " + volume.id + " renamed", new_volume_name, "1")
+                volume.create_tags(Tags=volumes_new_name)
             else:
-                logData['proc'] = " volumeID " + Volume.id + " named correctly"
-                logData['data'] = NewVolumeName
-        if Volume.state == 'available':
-            NewVolumeName = UnattachedLabel + VolumeName
-            VolumesNewName = [{'Key': 'Name', 'Value': NewVolumeName}]
-            if not VolumeName.startswith('- UNATTACHED -'):
-                logData['proc'] = "unattached EBS " + Volume.id + " renamed"
-                logData['data'] = "to:  " + NewVolumeName
-                Volume.create_tags(Tags=VolumesNewName)
+                log.process(" EBS " + volume.id + " named correctly", new_volume_name, "1")
+        if volume.state == 'available':
+            new_volume_name = unattached_label + volume_name
+            volumes_new_name = [{'Key': 'Name', 'Value': new_volume_name}]
+            if not volume_name.startswith('- UNATTACHED -'):
+                log.process("unattached EBS " + volume.id + " renamed", new_volume_name, "1")
+                volume.create_tags(Tags=volumes_new_name)
             else:
-                logData['proc'] = "unattached EBS " + Volume.id
-                logData['data'] = "is correctly named  " + NewVolumeName
-        logData['state'] = "success"
-        log_output(logData)
-        counter.add()
-    logData['state'] = "ending"
-    logData['proc'] = "volume rename"
-    logData['count'] = counter.number
-    log_output(logData)
+                log.process("unattached EBS " + volume.id + "is correctly named", new_volume_name, "1")
+    log.ending("volume rename")
     # Network Interface rename process
-    logData['state'] = "starting"
-    logData['proc'] = "interface rename"
-    log_output(logData)
-    NetworkInterfaces = EC2Client.describe_network_interfaces()
-    counter.reset()
-    for Interface in NetworkInterfaces['NetworkInterfaces']:
-        attached = ThisInterface = ''
-        InterfaceID = Interface['NetworkInterfaceId']
-        named = "[ no attachment status? ]"
-        ThisInterface = ec2.NetworkInterface(InterfaceID)
-        attached = ThisInterface.status
-        if attached == "in-use":
-            if 'InstanceId' in ThisInterface.attachment:
-                EC2ID = ThisInterface.attachment['InstanceId']
-                if EC2ID is not None:
-                    named = LR("get_ec2_instance_name", {
-                                                            "Region": region,
-                                                            "EC2ID": EC2ID
-                                                        })[1:-1]
+    log.starting("interface rename")
+    for interface in ec2.network_interfaces.all():
+        interface_new_name = "[ no attachment status? ]"
+        if interface.status == "in-use":
+            if 'InstanceId' in interface.attachment:
+                ec2_id = interface.attachment['InstanceId']
+                if ec2_id is not None:
+                    interface_new_name = ec2_instances.name(ec2_id)
                 else:
-                    named = "No-Instance-ID"
+                    interface_new_name = "No-Instance-ID"
             else:
                 try:
-                    named = Interface['Description']
+                    interface_new_name = Interface['Description']
                 except:
-                    named = "non-ec2-network-interface"
-        if attached == "available":
-            named = UnattachedLabel
-        InterfacesNewName = [{'Key': 'Name', 'Value': named}]
-        ThisInterface.create_tags(Tags=InterfacesNewName)
-        logData['proc'] = ThisInterface.network_interface_id + " now labeled "
-        logData['data'] = named
-        logData['state'] = "success"
-        log_output(logData)
-        counter.add()
-    logData['state'] = "ending"
-    logData['proc'] = "interface rename"
-    logData['count'] = counter.number
-    log_output(logData)
+                    interface_new_name = "non-ec2-network-interface"
+        if interface.status == "available":
+            interface_new_name = unattached_label
+        interfaces_new_name = [{'Key': 'Name', 'Value': interface_new_name}]
+        interface.create_tags(Tags=interfaces_new_name)
+        log.process(" Interface " + interface.id + " labeled ", interface_new_name, "1")
+    log.ending("interface rename")
     # Snapshot labeling process
-    logData['state'] = "starting"
-    logData['proc'] = "snapshot labeling"
-    log_output(logData)
-    DescribeAllSnapshots = EC2Client.describe_snapshots(OwnerIds=OIDS)
-    counter.reset()
-    for Snapshot in DescribeAllSnapshots['Snapshots']:
-        ThisSnapshot = NewSnapN = ''
-        SnapID = Snapshot['SnapshotId']
-        ThisSnapshot = ec2.Snapshot(SnapID)
-        SnapshotOwner = ThisSnapshot.owner_id
-        Desc = ThisSnapshot.description
-        SnapshotTags = ThisSnapshot.tags
-        Dob = ThisSnapshot.start_time
-        Dob = Dob.strftime("%m/%d/%y")
-        SnapshotName = get_tag_name(SnapshotTags)
-        SnapVolume = ThisSnapshot.volume_id
-        if SnapshotName.startswith(UnNamedLabel):
-            if Desc.startswith(GenericSnapshot):
-                if SnapVolume is not None:
-                    OriginalVolume = ec2.Volume(SnapVolume).id
-                    if OriginalVolume is not None:
-                        try:
-                            NewSnapN = get_tag_name(ec2.Volume(SnapVolume).tags)
-                            logData['proc'] = " Labeling SnapID: " + SnapID
-                            logData['data'] = " as  " + NewSnapN
-                            logData['state'] = "success"
-                        except:
-                            logData['proc'] = "no volume with ID " + SnapVolume
-                            logData['data'] = "exists"
-                            logData['state'] = "error"
-                            NewSnapN = "Old-" + SnapVolume + "-Snapshot-" + Dob
-
+    log.starting("snapshot labeling")
+    all_snapshots = ec2.snapshots.filter(Filters=[{
+                                                    'Name': 'owner-id',
+                                                    'Values': OIDS
+                                                }])
+    for snapshot in all_snapshots:
+        desc = snapshot.description
+        dob = snapshot.start_time.strftime("%m/%d/%y")
+        snap_name = get_tag_name(snapshot.tags)
+        if snap_name.startswith(no_name_label) or len(snap_name) == 0:
+            if snapshot.description.startswith(generic_snapshot):
+                if snapshot.volume_id is not None:
+                    try:
+                        volume_tags = ec2.Volume(snapshot.volume_id).tags
+                        new_snap_name =  get_tag_name(volume_tags)
+                        status = "1"
+                        proc = " Labeling SnapID: " + snapshot.id + " as "
+                        data = new_snap_name
+                    except:
+                        status = "0"
+                        proc = "no volume with ID " 
+                        data = snapshot.volume_id
+                        new_snap_name = "Old-" + snapshot.volume_id + "-Snapshot-" + dob
                 else:
-                    NewSnapN = "CreateImage" + SnapVolume + "-Snapshot-" + Dob
-                    logData['proc'] = "Labeling SnapID: " + SnapID
-                    logData['data'] = "as  " + NewSnapN
-                    logData['state'] = "success"
-
+                    status = "1"
+                    new_snap_name = "CreateImage" + snapshot.volume_id + "-Snapshot-" + dob
+                    proc = "Labeling SnapID: " + snapshot.id + "as  "
+                    data = new_snap_name
             else:
-                NewSnapN = Desc
-                logData['proc'] = "Labeling Snapashot: " + SnapID + " : " + Desc
-                logData['data'] = "as " + NewSnapN
-                logData['state'] = "success"
-
-            Snapshot_new_name = [{'Key': 'Name', 'Value': NewSnapN}]
-            ThisSnapshot.create_tags(Tags=Snapshot_new_name)
-
+                status = "1"
+                new_snap_name = desc
+                proc = "Labeling Snapashot: " + snapshot.id + " : " + desc + " as "
+                data = new_snap_name
+            snapshots_new_name = [{'Key': 'Name', 'Value': new_snap_name}]
+            snapshot.create_tags(Tags=snapshots_new_name)
         else:
-            logData['proc'] = "Snapshot: " + SnapID
-            logData['data'] = "already tagged as  " + SnapshotName
-            logData['state'] = "success"
-
-        log_output(logData)
-        counter.add()
-    logData['state'] = "ending"
-    logData['proc'] = "snapshot labeling"
-    logData['count'] = counter.number
-    log_output(logData)
+            status = "1"
+            proc = "Snapshot: " + snapshot.id + " already tagged as"
+            data = snap_name
+            
+        log.process(proc, data, status)    
+    log.ending("snapshot labeling")
     # AMI labeling process
-    logData['state'] = "starting"
-    logData['proc'] = "Labeling owned AMIs"
-    log_output(logData)
-    DescribeAllImages = EC2Client.describe_images(Owners=OIDS)
-    counter.reset()
-    for Image in DescribeAllImages['Images']:
-        ThisImage = ''
-        ImageID = Image['ImageId']
-        ThisImage = ec2.Image(ImageID)
-        ThisImageOwner = ThisImage.owner_id
-        AMIName = ThisImage.name
-        ImageNewName = AMIName
-        ImageTags = ThisImage.tags
-        DOB = ThisImage.creation_date
-        ImageName = get_tag_name(ImageTags)
-        if ImageName.startswith(UnNamedLabel) or len(ImageName) == 0:
-            logData['proc'] = "Labeling Image: " + ImageId + " with"
-            logData['data'] = AMIName + "current name: " + ImageName
-            logData['state'] = "success"
-            log_output(logData)
-            ImageNewName = [{'Key': 'Name', 'Value': AMIName}]
-            ThisImage.create_tags(Tags=ImageNewName)
+    log.starting("Labeling owned AMIs")
+    all_images = ec2.images.filter(Filters=[{
+                                                'Name': 'owner-id',
+                                                'Values': OIDS
+                                            }])
+    for image in all_images:
+        AMI_name = image.name
+        dob = image.creation_date[0:10]
+        image_name = get_tag_name(image.tags)
+        if image_name.startswith(no_name_label) or len(image_name) == 0:
+            AMI_name += " " + dob
+            proc = "Labeling Image: " + image.id + " with"
+            data = AMI_name + " current name: " + image_name
+            image_new_name = [{'Key': 'Name', 'Value': AMI_name}]
+            image.create_tags(Tags=image_new_name)
         else:
-            logData['proc'] = "AMI " + ImageID + " already has a name"
-            logData['data'] = ImageName
-            logData['state'] = "success"
-            log_output(logData)
-        counter.add()
-    logData['state'] = "ending"
-    logData['proc'] = "Labeling owned AMIs"
-    logData['count'] = counter.number
-    log_output(logData)
+            proc = "AMI " + image.id + " already has a name"
+            data = image_name
+            
+        log.process(proc, data, "1")
+    log.ending("Labeling owned AMIs")
     # End
-    logData['state'] = "ending"
-    logData['proc'] = ProgramName + " " + vers
-    logData['count'] = counter.total
-    log_output(logData)
+    log.finished()
