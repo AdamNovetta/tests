@@ -74,7 +74,7 @@ class counter:
 # logging output class
 class log_data:
 
-    # create blank logging matrix and add counter
+    # create blank logging matrix with counter
     def __init__(self):
         self.state = "starting"
         self.proc = ''
@@ -103,7 +103,7 @@ class log_data:
         self.state = "finished"
         print_log(self)
 
-    # debug helper, has nothing to do with actual renaming process
+    # log print output, has nothing to do with actual renaming process
     def __str__(self):
         output = d = more_data = ''
         logger = logging.getLogger()
@@ -132,6 +132,7 @@ class log_data:
         return(output)
 
 
+# Check if logging on/off
 def print_log(logger_name):
     if ENABLE_LOGGING:
         print(logger_name)
@@ -141,6 +142,7 @@ def print_log(logger_name):
 def lambda_handler(event, context):
     ec2_instances = instance_ids()
     log = log_data()
+
     # EBS renaming process
     log.starting("volume rename")
     for volume in ec2.volumes.all():
@@ -165,6 +167,7 @@ def lambda_handler(event, context):
             else:
                 log.process("unattached EBS " + volume.id + "is correctly named", new_volume_name, "1")
     log.ending("volume rename")
+
     # Network Interface rename process
     log.starting("interface rename")
     for interface in ec2.network_interfaces.all():
@@ -187,6 +190,7 @@ def lambda_handler(event, context):
         interface.create_tags(Tags=interfaces_new_name)
         log.process(" Interface " + interface.id + " labeled ", interface_new_name, "1")
     log.ending("interface rename")
+
     # Snapshot labeling process
     log.starting("snapshot labeling")
     all_snapshots = ec2.snapshots.filter(Filters=[{
@@ -230,6 +234,7 @@ def lambda_handler(event, context):
 
         log.process(proc, data, status)
     log.ending("snapshot labeling")
+
     # AMI labeling process
     log.starting("Labeling owned AMIs")
     all_images = ec2.images.filter(Filters=[{
@@ -252,5 +257,6 @@ def lambda_handler(event, context):
 
         log.process(proc, data, "1")
     log.ending("Labeling owned AMIs")
+
     # End
     log.finished()
