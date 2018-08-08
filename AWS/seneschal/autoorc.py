@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import boto3
 import logging
 import time
@@ -17,65 +16,61 @@ stop = "autoOrc-down"
 # Start instances only on weekdays? (change to False to start every day)
 weekdays = True
 
-# define boto3 connections/variables
+# Define boto3 connections/variables
 ec2 = boto3.resource('ec2')
 cw = boto3.client('cloudwatch')
 rds = boto3.client('rds')
 
 
-# Setup cloudwatch alerts for instances
-def putCloudWatchMetric(metricName, value, process, outcome):
+# Create cloudwatch metrics for instance start/stop/failure
+def put_cloudwatch_metric(metricName, value, process, outcome):
     cw.put_metric_data(
         Namespace='ORC-Results',
         MetricData=[{
             'MetricName': metricName,
             'Value': value,
             'Unit': 'Count',
-            'Dimensions': [{
-                'Name': 'Process',
-                'Value': process
-                },
-                {
-                'Name': 'Outcome',
-                'Value': outcome
-                }]
-            }]
+            'Dimensions': [
+                {'Name': 'Process', 'Value': process},
+                {'Name': 'Outcome', 'Value': outcome}
+            ]
+        }]
     )
 
 
-# find the name tag of an instance
+# Find the name tag of an instance
 def get_ec2_instance_name(instance_id):
-    InstanceName = None
-    UnNamedLabel = "(no name)"
-    EC2Instance = ec2.Instance(instance_id)
-    if EC2Instance.tags is not None:
-        for tags in EC2Instance.tags:
+    instance_name = None
+    unnamed_label = "(no name)"
+    ec2_instance = ec2.Instance(instance_id)
+    if ec2_instance.tags is not None:
+        for tags in ec2_instance.tags:
             if tags["Key"] == 'Name':
-                InstanceName = tags["Value"]
-    if InstanceName is None or InstanceName == '':
-        InstanceName = UnNamedLabel
-    return(InstanceName)
+                instance_name = tags["Value"]
+    if instance_name is None or instance_name == '':
+        instance_name = unnamed_label
+    return(instance_name)
 
 
-# function to get AutoOrc-down / AutoOrc-up tags
+# Get AutoOrc-down / AutoOrc-up tags on RDS instances
 def get_rds_orc_tags(ARN, phase):
-    OrcTimer = ''
+    orc_timer = ''
     tags = rds.list_tags_for_resource(ResourceName=ARN)
 
     for tag in tags['TagList']:
         if tag['Key'] == phase:
-            OrcTimer = tag['Value']
+            orc_timer = tag['Value']
 
-    return OrcTimer
+    return orc_timer
 
 
-# Main function, that lambda calls
+# Main function that lambda calls
 def lambda_handler(event, context):
     start_tag = "tag:" + start
     stop_tag = "tag:" + stop
-    MyAWSID = boto3.client('sts').get_caller_identity().get('Account')
+    aws_id = boto3.client('sts').get_caller_identity().get('Account')
 
-    # day of the week
+    # Day of the week
     d = datetime.datetime.now()
 
     # Check to see if today is a weekday
@@ -87,107 +82,102 @@ def lambda_handler(event, context):
 
     is_weekday = weekday(d)
 
-    # define timer, used to gague shutdown time, in UTC time
+    # Define a timer, used to gague shutdown time, in UTC
     timer = time.strftime("%H:%M")
 
-    # set base filters for running/stopped instances, and matching orc tags
-    FilterRunning = [
+    # Set base filters for running/stopped instances, and matching orc tags
+    filter_running = [
         {'Name': 'instance-state-name', 'Values': ['running']},
         {'Name': stop_tag, 'Values': [timer]}
         ]
 
-    FilterStopped = [
+    filter_stopped = [
         {'Name': 'instance-state-name', 'Values': ['stopped']},
         {'Name': start_tag, 'Values': [timer]}
         ]
 
     print("\n[ AutoOrc start time : " + timer + " ]")
-    # determine all running instances and filter for the orc up tag
-    OrcInstances = ec2.instances.filter(Filters=FilterRunning)
-    OrcDBs = rds.describe_db_instances()
-    counter = ErrorCounter = 0
 
-    # AutoOrc down EC2 Instances
-    for instance in OrcInstances:
+    orc_inst = ec2.instances.filter(Filters=filter_running)
+    orc_rds = rds.describe_db_instances()
+    counter = error_counter = 0
+
+    # Stop EC2 Instances
+    for instance in orc_inst:
         counter += 1
-        StateCode = 0
+        state_code = 0
         name = get_ec2_instance_name(instance.id)
-        # Print the instances stopping for logging purposes
         print(
                 "---> Shutting down instance: \n\t" + instance.id +
                 "[ Name : " + name + " ] "
             )
         response = instance.stop()
-        StateCode = response['StoppingInstances'][0]['CurrentState']['Code']
+        state_code = response['StoppingInstances'][0]['CurrentState']['Code']
 
-        # print "Instance " + name + " status code: " + str(StateCode)
-        if StateCode == 16:
-            ErrorCounter += 1
-            print("Error stopping " + name + ", error code: " + str(StateCode))
+        if state_code == 16:
+            error_counter += 1
+            print(" Error Code # " + str(state_code) + " stopping" + name)
 
     if (counter > 0):
-        putCloudWatchMetric(MyAWSID, counter, stop, 'Success')
+        put_cloudwatch_metric(aws_id, counter, stop, 'Success')
 
-    if (ErrorCounter > 0):
-        putCloudWatchMetric(MyAWSID, ErrorCounter, stop, 'Error')
+    if (error_counter > 0):
+        put_cloudwatch_metric(aws_id, error_counter, stop, 'Error')
         print(" x - Errored while stopping " + str(counter) + " instances")
 
     print(" - Stopped " + str(counter) + " instances")
 
-    # determine all stopped instances and filter for the orc up tag
-    OrcInstancesUp = ec2.instances.filter(Filters=FilterStopped)
-    counter = ErrorCounter = 0
-    BadStartCodes = ['32', '48', '64', '80']
+    orc_inst_up = ec2.instances.filter(Filters=filter_stopped)
+    counter = error_counter = 0
+    bad_start_codes = ['32', '48', '64', '80']
 
-    # check to make sure we're only starting stuff on weekdays
-    if is_weekday or if not weekdays:
-        for instance in OrcInstancesUp:
+    # Cycle through and start tagged EC2 instances
+    if is_weekday or weekdays is False:
+        for instance in orc_inst_up:
             counter += 1
-            StateCode = 0
+            state_code = 0
             name = get_ec2_instance_name(instance.id)
-            # Print the instances starting for logging purposes
             print(
                     "---> Starting instance: \n\t" + instance.id +
                     " [ Name : " + name + " ] "
                 )
-            response = instance.start()
-            StateCode = response['StartingInstances'][0]['CurrentState']['Code']
+            resp = instance.start()
+            state_code = resp['StartingInstances'][0]['CurrentState']['Code']
 
-            if StateCode in BadStartCodes:
-                ErrorCounter += 1
-                print(" Error starting " + name + ", code: " + str(StateCode))
+            if state_code in bad_start_codes:
+                error_counter += 1
+                print(" Error starting " + name + ", code: " + str(state_code))
 
         if (counter > 0):
-            putCloudWatchMetric(MyAWSID, counter, start, 'Success')
+            put_cloudwatch_metric(aws_id, counter, start, 'Success')
 
-        if (ErrorCounter > 0):
-            putCloudWatchMetric(MyAWSID, ErrorCounter, start, 'Error')
+        if (error_counter > 0):
+            put_cloudwatch_metric(aws_id, error_counter, start, 'Error')
             print(" x - Errored while starting " + str(counter) + " instances")
 
     print(" - Started " + str(counter) + " instances")
 
-    # Cycle through all RDS instaces, starting Orc tagged ones on weekdays
-    # stopping all instances if timer tag is (now)
-    for RDSInstance in OrcDBs['DBInstances']:
-        RDSName = str(RDSInstance['DBInstanceIdentifier'])
-        RDSARN = str(RDSInstance['DBInstanceArn'])
-        RDSStatus = str(RDSInstance['DBInstanceStatus'])
-        RDSAZState = str(RDSInstance['MultiAZ'])
+    # Cycle through all RDS instaces, starting/stopping Orc tagged ones
+    for rds_inst in orc_rds['DBInstances']:
+        rds_name = str(rds_inst['DBInstanceIdentifier'])
+        rds_arn = str(rds_inst['DBInstanceArn'])
+        rds_status = str(rds_inst['DBInstanceStatus'])
+        rds_az_state = str(rds_inst['MultiAZ'])
 
-        if is_weekday or if not weekdays:
+        if is_weekday or weekdays is False:
 
-            if RDSAZState == 'False' and RDSStatus == 'stopped':
-                orc_up = get_rds_orc_tags(RDSARN, start)
+            if rds_az_state == 'False' and rds_status == 'stopped':
+                orc_up = get_rds_orc_tags(rds_arn, start)
 
                 if orc_up == timer:
-                    print("RDS : " + RDSName + " database is starting up")
-                    rds.start_db_instance(DBInstanceIdentifier=RDSName)
+                    print("RDS : " + rds_name + " database is starting up")
+                    rds.start_db_instance(DBInstanceIdentifier=rds_name)
 
-        if RDSAZState == 'False' and RDSStatus == 'available':
-            orc_down = get_rds_orc_tags(RDSARN, stop)
+        if rds_az_state == 'False' and rds_status == 'available':
+            orc_down = get_rds_orc_tags(rds_arn, stop)
 
             if orc_down == timer:
-                print("RDS : " + RDSName + " database is shutting down now")
-                rds.stop_db_instance(DBInstanceIdentifier=RDSName)
+                print("RDS : " + rds_name + " database is shutting down now")
+                rds.stop_db_instance(DBInstanceIdentifier=rds_name)
 
     print("[ AutoOrc finished ]\n")
