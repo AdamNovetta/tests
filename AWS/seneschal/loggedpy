@@ -26,11 +26,13 @@ class counter:
 class log_data:
 
     # create blank logging-item object with counter
-    def __init__(self):
+    def __init__(self, program_name, version):
         self.state = "starting"
         self.proc = ''
         self.data = ''
         self.count = counter()
+        self.program_name = program_name
+        self.version = version
 
     def starting(self, process):
         self.count.reset()
@@ -56,13 +58,25 @@ class log_data:
 
     # log print output
     def __str__(self):
+        output = d = more_data = ''
+        logger = logging.getLogger()
+        # set below to DEBUG or INFO to see more errors in event log/console
+        logger.setLevel(logging.WARNING)
+
+        count = str(self.count.number)
+        total = str(self.count.total)
+        pn = self.program_name
+        v = self.version
+        if self.data:
+            more_data = str(self.data)
+
+        d = str(datetime.datetime.now())
         ############################
         ## Output messaging vars  ##
         ############################
-        output = d = more_data = ''
         err = " X ERROR X "
         suc = "+ - "
-        header = "[ " + ProgramName + " - " + Vers + " | "
+        header = "[ " + pn + " - " + v + " | "
         tailed = " process @ " + d + " ]"
         footer = "[ <!> ____ Processed: "
         counted = " objects during "
@@ -75,18 +89,6 @@ class log_data:
         #############################
         #############################
 
-        logger = logging.getLogger()
-        # set below to DEBUG or INFO to see more errors in event log/console
-        logger.setLevel(logging.WARNING)
-
-        count = str(self.count.number)
-        total = str(self.count.total)
-
-        if self.data:
-            more_data = str(self.data)
-
-        d = str(datetime.datetime.now())
-
         if "0" in self.state:
             output = err + self.proc + dash + more_data
         if "1" in self.state:
@@ -96,7 +98,7 @@ class log_data:
         if "ending" in self.state:
             output = footer + count + counted + self.proc + footer
         if "finished" in self.state:
-            output = ending + total + totaled + ProgramName + endend
+            output = ending + total + totaled + pn + endend
 
         return(output)
 
