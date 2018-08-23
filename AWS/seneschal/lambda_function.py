@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import json
 import boto3
@@ -15,7 +14,10 @@ Desc = "AWS Admin Automation Program"
 ##########
 ##########
 
+# enable logging output?
+logging_output = True
+
     
 def lambda_handler(event, context):
-    log = logged.log_data(ProgramName,Vers)
+    log = logged.log_data(ProgramName,Vers,logging_output)
     log.starting("autotasks")
