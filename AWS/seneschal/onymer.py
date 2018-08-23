@@ -4,15 +4,12 @@ import boto3
 import logging
 import time
 import datetime
-
+import log
 
 # Meta
 Vers = "4.3.2"
 ProgramName = "Onymer"
 Desc = "Tags EC2 assests (AMIs/EBSs/IFs/Snaps) based on EC2 Instance name tag"
-
-# Set below to False to disable logging output
-ENABLE_LOGGING = True
 
 
 # Define boto3 connections/variables
@@ -55,87 +52,6 @@ class instance_ids:
             return(self.names[id])
         else:
             return(False)
-
-
-# Iteration counter for naming passes / debugging
-class counter:
-        def __init__(self):
-                self.number = 0
-                self.total = 0
-
-        def add(self):
-                self.number += 1
-                self.total += 1
-
-        def reset(self):
-                self.number = 0
-
-
-# logging output class
-class log_data:
-
-    # create blank logging matrix with counter
-    def __init__(self):
-        self.state = "starting"
-        self.proc = ''
-        self.data = ''
-        self.count = counter()
-
-    def starting(self, process):
-        self.count.reset()
-        self.state = "starting"
-        self.proc = process
-        print_log(self)
-
-    def process(self, p, d, s):
-        self.state = s
-        self.proc = p
-        self.data = d
-        self.count.add()
-        print_log(self)
-
-    def ending(self, process):
-        self.state = "ending"
-        self.proc = process
-        print_log(self)
-
-    def finished(self):
-        self.state = "finished"
-        print_log(self)
-
-    # log print output, has nothing to do with actual renaming process
-    def __str__(self):
-        output = d = more_data = ''
-        logger = logging.getLogger()
-        # set below to DEBUG or INFO to see more errors in event log/console
-        logger.setLevel(logging.WARNING)
-
-        count = str(self.count.number)
-        total = str(self.count.total)
-
-        if self.data:
-            more_data = str(self.data)
-
-        d = str(datetime.datetime.now())
-
-        if "0" in self.state:
-            output = " X ERROR X " + self.proc + " - " + more_data
-        if "1" in self.state:
-            output = "+ - " + self.proc + " - " + more_data
-        if "starting" in self.state:
-            output = "[ " + ProgramName + " - " + Vers + " | " + self.state + " " + self.proc + " process @ " + d + " ]"
-        if "ending" in self.state:
-            output = "[ <!> ____ Processed: " + count + " objects during " + self.proc + " tasks _____ <!> ]\n"
-        if "finished" in self.state:
-            output = "\n[ <O> ____ Completed! Processed : " + total + " total objects in " + ProgramName + " run _____ <O> ]\n"
-
-        return(output)
-
-
-# Check if logging on/off
-def print_log(logger_name):
-    if ENABLE_LOGGING:
-        print(logger_name)
 
 
 # Main function
