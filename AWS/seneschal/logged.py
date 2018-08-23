@@ -5,8 +5,6 @@ import logging
 import time
 import datetime
 
-# Set below to False to disable logging output
-
 
 # Iteration counter for naming passes / debugging
 class counter:
@@ -34,7 +32,7 @@ class log_data:
         self.program_name = program_name
         self.version = version
         self.enable_logging = enable_logging
-        
+
     def starting(self, process):
         self.count.reset()
         self.state = "starting"
