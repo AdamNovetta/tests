@@ -75,16 +75,20 @@ class log_data:
         ############################
         err = " X ERROR X "
         suc = "+ - "
-        header = "[ " + pn + " - " + v + " | "
-        tailed = " process @ " + d + " ]"
-        footer = "[ <!> ____ Processed: "
-        counted = " objects during "
-        footend = " tasks _____ <!> ]\n"
-        ending = "\n[ <O> ____ Completed! Processed : "
-        totaled = " total objects in "
-        endend = " run _____ <O> ]\n"
         dash = " - "
         sp = " "
+        lb = "\n[ "
+        rb = " ]\n"
+        pipe = " | "
+        header = lb + pn + dash + v + pipe
+        tailed = " process @ " + d + rb
+        footer = lb + " <!> ____ Processed: "
+        counted = " objects during "
+        footend = " tasks _____ <!>" + rb
+        ending = lb + "<O> ____ Completed! Processed: "
+        totaled = " total objects in "
+        endend = " run _____ <O>" + rb
+
         #############################
         #############################
 
