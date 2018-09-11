@@ -71,7 +71,7 @@ class log_data:
 
         d = str(datetime.datetime.now())
         ############################
-        ## Output messaging vars  ##
+        # Output messaging vars    #
         ############################
         err = " X ERROR X "
         suc = "+ - "
@@ -97,13 +97,14 @@ class log_data:
         if "1" in self.state:
             output = suc + self.proc + dash + more_data
         if "starting" in self.state:
-            output =  header + self.state + sp + self.proc + tailed
+            output = header + self.state + sp + self.proc + tailed
         if "ending" in self.state:
-            output = footer + count + counted + self.proc + footer
+            output = footer + count + counted + self.proc + footend
         if "finished" in self.state:
             output = ending + total + totaled + pn + endend
 
         return(output)
+
 
 # Check if logging on/off
 def print_log(logger_name):

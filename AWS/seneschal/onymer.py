@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 import json
 import boto3
-import logging
 import time
 import datetime
-import log
+import logged
+
 
 # Meta
 Vers = "4.3.2"
 ProgramName = "Onymer"
 Desc = "Tags EC2 assests (AMIs/EBSs/IFs/Snaps) based on EC2 Instance name tag"
-
-
 # Define boto3 connections/variables
 ec2 = boto3.resource("ec2")
 # Getting the Account ID needed to filter snapshots/AMIs
@@ -57,8 +55,10 @@ class instance_ids:
 # Main function
 def lambda_handler(event, context):
     ec2_instances = instance_ids()
-    log = log_data()
-
+    if event['logging']:
+        log = logged.log_data(ProgramName, Vers, event['logging'])
+    else:
+        log = logged.log_data(ProgramName, Vers, False)
     # EBS renaming process
     log.starting("volume rename")
     for volume in ec2.volumes.all():
@@ -70,18 +70,34 @@ def lambda_handler(event, context):
             new_volume_name = "[ " + instance_name + " ]-" + instance_mount
             volumes_new_name = [{'Key': 'Name', 'Value': new_volume_name}]
             if volume_name != new_volume_name:
-                log.process("EBS " + volume.id + " renamed", new_volume_name, "1")
+                log.process(
+                            "EBS " + volume.id + " renamed",
+                            new_volume_name,
+                            "1"
+                            )
                 volume.create_tags(Tags=volumes_new_name)
             else:
-                log.process(" EBS " + volume.id + " named correctly", new_volume_name, "1")
+                log.process(
+                            " EBS " + volume.id + " named correctly",
+                            new_volume_name,
+                            "1"
+                            )
         if volume.state == 'available':
             new_volume_name = unattached_label + volume_name
             volumes_new_name = [{'Key': 'Name', 'Value': new_volume_name}]
             if not volume_name.startswith('- UNATTACHED -'):
-                log.process("unattached EBS " + volume.id + " renamed", new_volume_name, "1")
+                log.process(
+                            "unattached EBS " + volume.id + " renamed",
+                            new_volume_name,
+                            "1"
+                            )
                 volume.create_tags(Tags=volumes_new_name)
             else:
-                log.process("unattached EBS " + volume.id + "is correctly named", new_volume_name, "1")
+                log.process(
+                            "unattached EBS " + volume.id + " correctly named",
+                            new_volume_name,
+                            "1"
+                            )
     log.ending("volume rename")
 
     # Network Interface rename process
@@ -104,7 +120,11 @@ def lambda_handler(event, context):
             interface_new_name = unattached_label
         interfaces_new_name = [{'Key': 'Name', 'Value': interface_new_name}]
         interface.create_tags(Tags=interfaces_new_name)
-        log.process(" Interface " + interface.id + " labeled ", interface_new_name, "1")
+        log.process(
+                    " Interface " + interface.id + " labeled ",
+                    interface_new_name,
+                    "1"
+                    )
     log.ending("interface rename")
 
     # Snapshot labeling process
@@ -130,16 +150,19 @@ def lambda_handler(event, context):
                         status = "0"
                         proc = "no volume with ID "
                         data = snapshot.volume_id
-                        new_snap_name = "Old-" + snapshot.volume_id + "-Snapshot-" + dob
+                        new_snap_name = "Old-" + snapshot.volume_id
+                        new_snap_name += "-Snapshot-" + dob
                 else:
                     status = "1"
-                    new_snap_name = "CreateImage" + snapshot.volume_id + "-Snapshot-" + dob
+                    new_snap_name = "CreateImage" + snapshot.volume_id
+                    new_snap_name += "-Snapshot-" + dob
                     proc = "Labeling SnapID: " + snapshot.id + "as  "
                     data = new_snap_name
             else:
                 status = "1"
                 new_snap_name = desc
-                proc = "Labeling Snapashot: " + snapshot.id + " : " + desc + " as "
+                proc = "Labeling Snapashot: " + snapshot.id + " : "
+                proc += desc + " as "
                 data = new_snap_name
             snapshots_new_name = [{'Key': 'Name', 'Value': new_snap_name}]
             snapshot.create_tags(Tags=snapshots_new_name)
