@@ -33,10 +33,10 @@ class log_data:
         self.version = version
         self.enable_logging = enable_logging
 
-    def starting(self, process):
+    def starting(self, p):
         self.count.reset()
         self.state = "starting"
-        self.proc = process
+        self.proc = p
         print_log(self)
 
     def process(self, p, d, s):
@@ -46,9 +46,16 @@ class log_data:
         self.count.add()
         print_log(self)
 
-    def ending(self, process):
+    def subroutine(self, p, d):
+        self.state = "sub"
+        self.proc = p
+        self.data = d
+        self.count.add()
+        print_log(self)
+
+    def ending(self, p):
         self.state = "ending"
-        self.proc = process
+        self.proc = p
         print_log(self)
 
     def finished(self):
@@ -76,6 +83,7 @@ class log_data:
         ############################
         err = " X ERROR X "
         suc = "+ - "
+        subr = ">  "
         dash = " - "
         sp = " "
         lb = "\n[ "
@@ -85,7 +93,7 @@ class log_data:
         tailed = " process @ " + d + rb
         footer = lb + " <!> ____ Processed: "
         counted = " items during "
-        footend = " tasks _____ <!>" + rb
+        footend = " routine _____ <!>" + rb
         ending = lb + "<O> ____ Completed! Processed: "
         totaled = " total objects in "
         endend = " run _____ <O>" + rb
@@ -97,6 +105,8 @@ class log_data:
             output = err + self.proc + dash + more_data
         elif "1" in self.state:
             output = suc + self.proc + dash + more_data
+        elif "sub" in self.state:
+            output = subr + self.proc + sp + more_data
         elif "starting" in self.state:
             output = header + self.state + sp + self.proc + tailed
         elif "ending" in self.state:
