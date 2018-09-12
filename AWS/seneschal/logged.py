@@ -70,6 +70,7 @@ class log_data:
             more_data = str(self.data)
 
         d = str(datetime.datetime.now())
+
         ############################
         # Output messaging vars    #
         ############################
@@ -83,7 +84,7 @@ class log_data:
         header = lb + pn + dash + v + pipe
         tailed = " process @ " + d + rb
         footer = lb + " <!> ____ Processed: "
-        counted = " objects during "
+        counted = " items during "
         footend = " tasks _____ <!>" + rb
         ending = lb + "<O> ____ Completed! Processed: "
         totaled = " total objects in "
@@ -94,14 +95,16 @@ class log_data:
 
         if "0" in self.state:
             output = err + self.proc + dash + more_data
-        if "1" in self.state:
+        elif "1" in self.state:
             output = suc + self.proc + dash + more_data
-        if "starting" in self.state:
+        elif "starting" in self.state:
             output = header + self.state + sp + self.proc + tailed
-        if "ending" in self.state:
+        elif "ending" in self.state:
             output = footer + count + counted + self.proc + footend
-        if "finished" in self.state:
+        elif "finished" in self.state:
             output = ending + total + totaled + pn + endend
+        else:
+            output = " uknown IO directive to log fucntion via self.state..."
 
         return(output)
 
