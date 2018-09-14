@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 import boto3
 import logging
+import logged
 import time
 import datetime
 
+# Meta
+Vers = "1.0"
+ProgramName = "AutoOrc"
+Desc = "Auto-starts and Auto-stops EC2 & RDS instances based on tags"
 
 # Output logging - default WARNING. Set to INFO for full output in cloudwatch
 logger = logging.getLogger()
@@ -66,6 +71,12 @@ def get_rds_orc_tags(ARN, phase):
 
 # Main function that lambda calls
 def lambda_handler(event, context):
+
+    if event['logging']:
+        log = logged.log_data(ProgramName, Vers, event['logging'])
+    else:
+        log = logged.log_data(ProgramName, Vers, False)
+
     start_tag = "tag:" + start
     stop_tag = "tag:" + stop
     aws_id = boto3.client('sts').get_caller_identity().get('Account')
@@ -96,88 +107,79 @@ def lambda_handler(event, context):
         {'Name': start_tag, 'Values': [timer]}
         ]
 
-    print("\n[ AutoOrc start time : " + timer + " ]")
-
+    # find available EC2 instances to stop
     orc_inst = ec2.instances.filter(Filters=filter_running)
     orc_rds = rds.describe_db_instances()
     counter = error_counter = 0
 
     # Stop EC2 Instances
     for instance in orc_inst:
+        log.starting("AutoOrc EC2 Shutdown")
         counter += 1
         state_code = 0
         name = get_ec2_instance_name(instance.id)
-        print(
-                "---> Shutting down instance: \n\t" + instance.id +
-                "[ Name : " + name + " ] "
-            )
         response = instance.stop()
         state_code = response['StoppingInstances'][0]['CurrentState']['Code']
-
         if state_code == 16:
             error_counter += 1
-            print(" Error Code # " + str(state_code) + " stopping" + name)
-
+            log.process(" Shutting down instance " + instance.id, name, "0")
+        else:
+            log.process(" Shutting down instance " + instance.id, name, "1")
     if (counter > 0):
         put_cloudwatch_metric(aws_id, counter, stop, 'Success')
-
     if (error_counter > 0):
         put_cloudwatch_metric(aws_id, error_counter, stop, 'Error')
-        print(" x - Errored while stopping " + str(counter) + " instances")
+    log.ending("AutoOrc EC2 Shutdown")
 
-    print(" - Stopped " + str(counter) + " instances")
-
+    # find available EC2 instances to start
     orc_inst_up = ec2.instances.filter(Filters=filter_stopped)
     counter = error_counter = 0
     bad_start_codes = ['32', '48', '64', '80']
 
     # Cycle through and start tagged EC2 instances
     if is_weekday or weekdays is False:
+        log.starting("AutoOrc EC2 Startup")
         for instance in orc_inst_up:
             counter += 1
             state_code = 0
             name = get_ec2_instance_name(instance.id)
-            print(
-                    "---> Starting instance: \n\t" + instance.id +
-                    " [ Name : " + name + " ] "
-                )
             resp = instance.start()
             state_code = resp['StartingInstances'][0]['CurrentState']['Code']
-
             if state_code in bad_start_codes:
                 error_counter += 1
-                print(" Error starting " + name + ", code: " + str(state_code))
-
+                log.process(
+                            " Starting instance " + instance.id,
+                            name + " error code: " + str(state_code),
+                            "0"
+                            )
+            else:
+                log.process(" Starting instance " + instance.id, name, "1")
         if (counter > 0):
             put_cloudwatch_metric(aws_id, counter, start, 'Success')
-
         if (error_counter > 0):
             put_cloudwatch_metric(aws_id, error_counter, start, 'Error')
-            print(" x - Errored while starting " + str(counter) + " instances")
+        log.ending("AutoOrc EC2 Startup")
 
-    print(" - Started " + str(counter) + " instances")
-
-    # Cycle through all RDS instaces, starting/stopping Orc tagged ones
+    # cycle through all RDS instaces, starting/stopping Orc tagged ones
     for rds_inst in orc_rds['DBInstances']:
         rds_name = str(rds_inst['DBInstanceIdentifier'])
         rds_arn = str(rds_inst['DBInstanceArn'])
         rds_status = str(rds_inst['DBInstanceStatus'])
         rds_az_state = str(rds_inst['MultiAZ'])
-
         if is_weekday or weekdays is False:
-
+            log.starting("AutoOrc RDS Startup")
             if rds_az_state == 'False' and rds_status == 'stopped':
                 orc_up = get_rds_orc_tags(rds_arn, start)
-
                 if orc_up == timer:
-                    print("RDS : " + rds_name + " database is starting up")
                     rds.start_db_instance(DBInstanceIdentifier=rds_name)
-
+                    log.process(" Starting RDS database", rds_name, "1")
+            log.ending("AutoOrc RDS Startup")
         if rds_az_state == 'False' and rds_status == 'available':
             orc_down = get_rds_orc_tags(rds_arn, stop)
-
+            log.starting("AutoOrc RDS Shutdown")
             if orc_down == timer:
-                print("RDS : " + rds_name + " database is shutting down now")
                 rds.stop_db_instance(DBInstanceIdentifier=rds_name)
+                log.process(" Stopping RDS database", rds_name, "1")
 
-    print("[ AutoOrc finished ]\n")
+    # End
+    log.finished()

@@ -39,14 +39,14 @@ class log_data:
         self.proc = p
         print_log(self)
 
-    def process(self, p, d, s):
+    def process(self, p, s, d=''):
         self.state = s
         self.proc = p
         self.data = d
         self.count.add()
         print_log(self)
 
-    def subroutine(self, p, d):
+    def subroutine(self, p, d=''):
         self.state = "sub"
         self.proc = p
         self.data = d
