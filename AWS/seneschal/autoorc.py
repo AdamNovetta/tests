@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import boto3
+import aws_tools
 import logging
 import logged
 import time
@@ -9,10 +10,6 @@ import datetime
 Vers = "1.0"
 ProgramName = "AutoOrc"
 Desc = "Auto-starts and Auto-stops EC2 & RDS instances based on tags"
-
-# Output logging - default WARNING. Set to INFO for full output in cloudwatch
-logger = logging.getLogger()
-logger.setLevel(logging.WARNING)
 
 # AWS Tags to target for starting and stopping
 start = "autoOrc-up"

@@ -25,34 +25,27 @@ message += start_message + "\n\n"
 # boto3 connections/variables
 lambda_client = boto3.client('lambda')
 ec2 = boto3.resource("ec2")
-EC2_client = boto3.client('ec2')
+ec2_client = boto3.client('ec2')
+iam_client = boto3.client('iam')
 
 
-# Function to relay calls to other Lambda functions
-def lambda_relay(function_name, payload=None):
-
-    if payload is not None:
-        pload = {"FunctionName": function_name, "FunctionPayload": payload}
+def get_account_name():
+    paginator = iam_client.get_paginator('list_account_aliases')
+    for response in paginator.paginate():
+        acct_alias = response['AccountAliases']
+    if len(acct_alias) > 1:
+        aws_acct_name = str("-".join(acct_alias))
     else:
-        pload = {"FunctionName": function_name}
-
-    lambda_output = lambda_client.invoke(
-            FunctionName='lambda_function_relay',
-            InvocationType='RequestResponse',
-            Payload=json.dumps(pload)
-            )
-    data = lambda_output['Payload'].read().decode()
-    return(data)
+        aws_acct_name = str("".join(acct_alias))
+    return aws_acct_name
 
 
 # Main function of the script
 def lambda_handler(event, context):
-    # TODO removed these two lambda relays
-    AWS_ID = lambda_relay("get_account_ID")[1:-1]
-    account_name = lambda_relay("get_account_name")[1:-1]
-    # end # TODO
+    aws_id = boto3.client('sts').get_caller_identity().get('Account')
+    account_name = get_account_name()
     topic_name = "auto-snapshots"
-    SNS_ARN = "arn:aws:sns:" + region_name + ":" + AWS_ID + ":" + topic_name
+    SNS_ARN = "arn:aws:sns:" + region_name + ":" + aws_id + ":" + topic_name
     del_list = []
     v_tags = ['DailySnapshot', 'WeeklySnapshot', 'MonthlySnapshot']
     message = errmsg = ""
@@ -69,10 +62,10 @@ def lambda_handler(event, context):
     tasks = v_tags
 
     # get the 'Name' tag out of the batch of tags sent
-    def get_tag_name(TAGS):
+    def get_tag_name(all_tags):
         name_tag = ''
-        if TAGS is not None:
-            for tags in TAGS:
+        if all_tags is not None:
+            for tags in all_tags:
                 if tags["Key"] == 'Name':
                     name_tag = tags["Value"]
         else:
@@ -88,7 +81,7 @@ def lambda_handler(event, context):
                 'Name': 'resource-id',
                 'Values': [resource_ID]
             }]
-            tags = EC2_client.describe_tags(Filters=tag_filter)
+            tags = ec2_client.describe_tags(Filters=tag_filter)
             for tag in tags['Tags']:
                 key = tag['Key']
                 value = tag['Value']
@@ -100,22 +93,11 @@ def lambda_handler(event, context):
 
     # Set the tags of the resource from the tags passed to the func
     def set_resource_tags(resource, tags):
-        for TKey, TValue in tags.items():
+        for tag_key, tag_value in tags.items():
             if resource.tags is None:
-                print(
-                        'Tagging ' + resource.id +
-                        ' with [' + TKey + ': ' + TValue + ']'
-                    )
-                resource.create_tags(Tags=[{
-                                            'Key': TKey,
-                                            'Value': TValue
-                                            }])
-            elif TKey not in resource.tags or resource.tags[TKey] != TValue:
-                print(
-                        'Tagging ' + resource.id +
-                        ' with [' + TKey + ': ' + TValue + ']'
-                    )
-                resource.create_tags(Tags=[{'Key': TKey, 'Value': TValue}])
+                resource.create_tags(Tags=[{'Key': tag_key,'Value': tag_value}])
+            elif tag_key not in resource.tags or resource.tags[tag_key] != tag_value:
+                resource.create_tags(Tags=[{'Key': tag_key, 'Value': tag_value}])
 
     # Only run 'WeeklySnapshot' on day 5 - Saturday
     if 5 != now:

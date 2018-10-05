@@ -6,7 +6,7 @@ import datetime
 import logged
 import onymer
 import autoorc
-
+import aws_tools
 
 ##########
 # Meta   #
@@ -23,9 +23,13 @@ downstream_logging = {'logging': logging_output}
 
 
 def lambda_handler(event, context):
-
+    my_account_name = aws_tools.get_account_name()
+    print(my_account_name)
+    my_account = aws_tools.get_account_id()
+    print(my_account)
     # available autotasks
-    autotasks = ['onymer', 'autoorc']
+    #autotasks = ['onymer', 'autoorc']
+    autotasks = []
 
     log = logged.log_data(ProgramName, Vers, logging_output)
 
@@ -34,11 +38,10 @@ def lambda_handler(event, context):
             routine = eval(task)
             name = routine.ProgramName
             ver = routine.Vers
-            routine.lambda_handler(downstream_logging, None)
+            #routine.lambda_handler(downstream_logging, None))
             log.subroutine(" [ Sub-routine " + name + " " + ver, "finished ]")
 
-    log.starting
-
+    log.starting("autotasks")
     for item in autotasks:
         autotask_subroutine(item)
 
