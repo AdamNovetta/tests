@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-import boto3
-import aws_tools
+# no boto3 except in aws_tools now!
+# import boto3
+
 import logging
 import logged
 import time
@@ -19,39 +20,14 @@ stop = "autoOrc-down"
 weekdays = True
 
 # Define boto3 connections/variables
-ec2 = boto3.resource('ec2')
-cw = boto3.client('cloudwatch')
-rds = boto3.client('rds')
+#ec2 = boto3.resource('ec2')
+#cw = boto3.client('cloudwatch')
+#rds = boto3.client('rds')
+rds = aws_tools.aws_client('rds')
+ec2 = aws_tools.aws_resource('ec2')
 
-
-# Create cloudwatch metrics for instance start/stop/failure
-def put_cloudwatch_metric(metricName, value, process, outcome):
-    cw.put_metric_data(
-        Namespace='ORC-Results',
-        MetricData=[{
-            'MetricName': metricName,
-            'Value': value,
-            'Unit': 'Count',
-            'Dimensions': [
-                {'Name': 'Process', 'Value': process},
-                {'Name': 'Outcome', 'Value': outcome}
-            ]
-        }]
-    )
-
-
-# Find the name tag of an instance
-def get_ec2_instance_name(instance_id):
-    instance_name = None
-    unnamed_label = "(no name)"
-    ec2_instance = ec2.Instance(instance_id)
-    if ec2_instance.tags is not None:
-        for tags in ec2_instance.tags:
-            if tags["Key"] == 'Name':
-                instance_name = tags["Value"]
-    if instance_name is None or instance_name == '':
-        instance_name = unnamed_label
-    return(instance_name)
+# cloudwatch names-space to use for metrics
+cw_ns = 'ORC-Results'
 
 
 # Get AutoOrc-down / AutoOrc-up tags on RDS instances
@@ -76,7 +52,7 @@ def lambda_handler(event, context):
 
     start_tag = "tag:" + start
     stop_tag = "tag:" + stop
-    aws_id = boto3.client('sts').get_caller_identity().get('Account')
+    aws_id = aws_tools.get_account_id()
 
     # Day of the week
     d = datetime.datetime.now()
@@ -114,7 +90,7 @@ def lambda_handler(event, context):
         log.starting("AutoOrc EC2 Shutdown")
         counter += 1
         state_code = 0
-        name = get_ec2_instance_name(instance.id)
+        name = aws_tools.get_ec2_instance_name(instance.id)
         response = instance.stop()
         state_code = response['StoppingInstances'][0]['CurrentState']['Code']
         if state_code == 16:
@@ -123,9 +99,9 @@ def lambda_handler(event, context):
         else:
             log.process(" Shutting down instance " + instance.id, name, "1")
     if (counter > 0):
-        put_cloudwatch_metric(aws_id, counter, stop, 'Success')
+        aws_tools.put_cloudwatch_metric(cw_ns, aws_id, counter, stop, 'Success')
     if (error_counter > 0):
-        put_cloudwatch_metric(aws_id, error_counter, stop, 'Error')
+        aws_tools.put_cloudwatch_metric(cw_ns, aws_id, error_counter, stop, 'Error')
     log.ending("AutoOrc EC2 Shutdown")
 
     # find available EC2 instances to start
@@ -139,7 +115,7 @@ def lambda_handler(event, context):
         for instance in orc_inst_up:
             counter += 1
             state_code = 0
-            name = get_ec2_instance_name(instance.id)
+            name = aws_tools.get_ec2_instance_name(instance.id)
             resp = instance.start()
             state_code = resp['StartingInstances'][0]['CurrentState']['Code']
             if state_code in bad_start_codes:
@@ -152,9 +128,9 @@ def lambda_handler(event, context):
             else:
                 log.process(" Starting instance " + instance.id, name, "1")
         if (counter > 0):
-            put_cloudwatch_metric(aws_id, counter, start, 'Success')
+            aws_tools.put_cloudwatch_metric(cw_ns, aws_id, counter, start, 'Success')
         if (error_counter > 0):
-            put_cloudwatch_metric(aws_id, error_counter, start, 'Error')
+            aws_tools.put_cloudwatch_metric(cw_ns, aws_id, error_counter, start, 'Error')
         log.ending("AutoOrc EC2 Startup")
 
     # cycle through all RDS instaces, starting/stopping Orc tagged ones

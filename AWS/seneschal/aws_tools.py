@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import boto3
 import logged
 
@@ -16,7 +17,7 @@ import logged
 
 
 # connect to aws client
-def aws_client(resource):
+def aws_client(resource, region_name=''):
 
     try:
         obj = boto3.client(resource)
@@ -27,7 +28,7 @@ def aws_client(resource):
 
 
 # connect to aws resource
-def aws_resource(resource):
+def aws_resource(resource, region_name=''):
 
     try:
         obj = boto3.resource(resource)
@@ -71,12 +72,11 @@ def all_s3_bucket_names():
 
 
 # get the name tag of an instance
-def get_ec2_instance_name(event):
+def get_ec2_instance_name(id, region=''):
     instance_name = ''
-    unamed_label = "no name?"
-    region = event['Region']
+    unamed_label = "(no name)"
 # XXX fix this XXX VVVVVVVVVVVV
-    ec2 = boto3.resource('ec2', region_name=region)
+    ec2 = aws_client('ec2', region_name=region)
 # XXX ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ XXX
     ec2_instance = ec2.Instance(event['EC2ID'])
     if ec2_instance.tags is not None:
@@ -89,7 +89,7 @@ def get_ec2_instance_name(event):
 
 
 # send out SNS message to a given topic, provided the message/sub
-def lambda_handler(event):
+def send_sns(event):
     sns_client = aws_client('sns')
     sns_arn = event['sns_arn']
     sns_message = event['sns_message']
@@ -99,3 +99,20 @@ def lambda_handler(event):
                         Message=sns_message,
                         Subject=sns_subject
                     )
+
+
+# Create cloudwatch metrics for instance start/stop/failure
+def put_cloudwatch_metric(namespace, metricName, value, process, outcome):
+    cw = aws_client('cloudwatchw')
+    cw.put_metric_data(
+        Namespace=namespace,
+        MetricData=[{
+            'MetricName': metricName,
+            'Value': value,
+            'Unit': 'Count',
+            'Dimensions': [
+                {'Name': 'Process', 'Value': process},
+                {'Name': 'Outcome', 'Value': outcome}
+            ]
+        }]
+    )
