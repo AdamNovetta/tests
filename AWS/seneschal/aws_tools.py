@@ -75,10 +75,8 @@ def all_s3_bucket_names():
 def get_ec2_instance_name(id, region=''):
     instance_name = ''
     unamed_label = "(no name)"
-# XXX fix this XXX VVVVVVVVVVVV
     ec2 = aws_client('ec2', region_name=region)
-# XXX ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ XXX
-    ec2_instance = ec2.Instance(event['EC2ID'])
+    ec2_instance = ec2.Instance(id)
     if ec2_instance.tags is not None:
         for tags in ec2_instance.tags:
             if tags["Key"] == 'Name':
