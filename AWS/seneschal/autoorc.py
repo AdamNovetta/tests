@@ -6,11 +6,11 @@ import logging
 import logged
 import time
 import datetime
-
+import aws_tools
 # Meta
-Vers = "1.0"
-ProgramName = "AutoOrc"
-Desc = "Auto-starts and Auto-stops EC2 & RDS instances based on tags"
+vers = "1.0"
+program_name = "AutoOrc"
+desc = "Auto-starts and Auto-stops EC2 & RDS instances based on tags"
 
 # AWS Tags to target for starting and stopping
 start = "autoOrc-up"

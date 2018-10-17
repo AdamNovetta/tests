@@ -6,14 +6,15 @@ import datetime
 import logged
 import onymer
 import autoorc
+import effingo
 import aws_tools
 
 ##########
 # Meta   #
 ##########
-Vers = "1.0"
-ProgramName = "Seneschal"
-Desc = "AWS Admin Automation Program"
+vers = "1.0"
+program_name = "Seneschal"
+desc = "AWS Admin Automation Program"
 ##########
 ##########
 
@@ -23,21 +24,21 @@ downstream_logging = {'logging': logging_output}
 
 
 def lambda_handler(event, context):
-    my_account_name = aws_tools.get_account_name()
-    print(my_account_name)
-    my_account = aws_tools.get_account_id()
-    print(my_account)
-    # available autotasks
-    #autotasks = ['onymer', 'autoorc']
-    autotasks = []
+    #my_account_name = aws_tools.get_account_name()
+    #print(my_account_name)
+    #my_account = aws_tools.get_account_id()
+    #print(my_account)
 
-    log = logged.log_data(ProgramName, Vers, logging_output)
+    # available autotasks
+    autotasks = ['onymer', 'autoorc', 'effingo']
+
+    log = logged.log_data(program_name, vers, logging_output)
 
     def autotask_subroutine(task):
         if task:
             routine = eval(task)
-            name = routine.ProgramName
-            ver = routine.Vers
+            name = routine.program_name
+            ver = routine.vers
             #routine.lambda_handler(downstream_logging, None))
             log.subroutine(" [ Sub-routine " + name + " " + ver, "finished ]")
 

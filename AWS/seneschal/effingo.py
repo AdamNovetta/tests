@@ -14,14 +14,6 @@ program_name = "Effingo"
 desc = "Takes Daily/Weekly/Monthly snapshots of EBS volumes"
 
 
-start_message = 'Started taking %(period)s snapshots at %(date)s' % {
-        'period': period,
-        'date': datetime.today().strftime('%d-%m-%Y %H:%M:%S')
-    }
-
-message += start_message + "\n\n"
-
-
 # boto3 connections/variables
 lambda_client = boto3.client('lambda')
 ec2 = boto3.resource("ec2")
@@ -123,6 +115,12 @@ def lambda_handler(event, context):
                                             'Name': 'tag:' + tag_type,
                                             'Values': ["True"]
                                             }])
+        start_message = 'Started taking %(period)s snapshots at %(date)s' % {
+                'period': period,
+                'date': datetime.today().strftime('%d-%m-%Y %H:%M:%S')
+            }
+
+        message += start_message + "\n\n"
         for vol in vols:
             v_name = get_tag_name(vol.tags)
             print("Taking snapshot of: " + v_name + "   ID: " + vol.id + "\n")

@@ -7,9 +7,9 @@ import logged
 
 
 # Meta
-Vers = "4.3.2"
-ProgramName = "Onymer"
-Desc = "Tags EC2 assests (AMIs/EBSs/IFs/Snaps) based on EC2 Instance name tag"
+vers = "4.3.2"
+program_name = "Onymer"
+desc = "Tags EC2 assests (AMIs/EBSs/IFs/Snaps) based on EC2 Instance name tag"
 # Define boto3 connections/variables
 ec2 = boto3.resource("ec2")
 # Getting the Account ID needed to filter snapshots/AMIs
