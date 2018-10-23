@@ -143,7 +143,7 @@ def lambda_handler(event, context):
                         del_list.append(snap)
                     else:
                         log.info("info", "Skipping " + sdesc)
-                log.info("info", "- snapshots in " + v_name + peroid + " series: ")
+                log.info("info", "- snapshot " + v_name + period + " series: ")
                 for snap in del_list:
                     log.info("info", "- - " + str(snap) + str(snap.start_time))
 
@@ -166,11 +166,13 @@ def lambda_handler(event, context):
                     del_list[i].delete()
                     t_deleted += 1
                 time.sleep(4)
+
             except Exception:
-                error_details = 'Error in processing volume id: ' + vol.id + "\n"
+                error_details = 'Error processing volume id: ' + vol.id + "\n"
                 log.info("0", error_details)
                 errmsg += error_details
                 count_err += 1
+
             else:
                 count_success += 1
 
