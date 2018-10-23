@@ -94,9 +94,9 @@ class log_data:
         footer = lb + " <!> ____ Processed: "
         counted = " items during "
         footend = " routine _____ <!>" + rb
-        ending = lb + "<O> ____ Completed! Processed: "
+        ending = lb + "<> ____ Completed! Processed: "
         totaled = " total objects in "
-        endend = " run _____ <O>" + rb
+        endend = " run _____ <>" + rb
 
         #############################
         #############################

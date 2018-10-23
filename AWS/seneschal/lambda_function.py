@@ -28,9 +28,12 @@ def lambda_handler(event, context):
     #print(my_account_name)
     #my_account = aws_tools.get_account_id()
     #print(my_account)
-
+    ############################################################################
     # available autotasks
-    autotasks = ['onymer', 'autoorc', 'effingo']
+    # All #
+    ############################################################################
+    #autotasks = ['onymer', 'autoorc', 'effingo']
+    autotasks = ['autoorc']
 
     log = logged.log_data(program_name, vers, logging_output)
 
@@ -39,7 +42,7 @@ def lambda_handler(event, context):
             routine = eval(task)
             name = routine.program_name
             ver = routine.vers
-            #routine.lambda_handler(downstream_logging, None))
+            routine.lambda_handler(downstream_logging, None)
             log.subroutine(" [ Sub-routine " + name + " " + ver, "finished ]")
 
     log.starting("autotasks")

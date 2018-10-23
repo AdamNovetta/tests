@@ -75,7 +75,7 @@ def all_s3_bucket_names():
 def get_ec2_instance_name(id, region=''):
     instance_name = ''
     unamed_label = "(no name)"
-    ec2 = aws_client('ec2', region_name=region)
+    ec2 = aws_resource('ec2', region_name=region)
     ec2_instance = ec2.Instance(id)
     if ec2_instance.tags is not None:
         for tags in ec2_instance.tags:
@@ -83,7 +83,7 @@ def get_ec2_instance_name(id, region=''):
                 instance_name = tags["Value"]
     else:
         instance_name = unamed_label
-    return(InstanceName)
+    return(instance_name)
 
 
 # send out SNS message to a given topic, provided the message/sub
@@ -101,7 +101,7 @@ def send_sns(event):
 
 # Create cloudwatch metrics for instance start/stop/failure
 def put_cloudwatch_metric(namespace, metricName, value, process, outcome):
-    cw = aws_client('cloudwatchw')
+    cw = aws_client('cloudwatch')
     cw.put_metric_data(
         Namespace=namespace,
         MetricData=[{
