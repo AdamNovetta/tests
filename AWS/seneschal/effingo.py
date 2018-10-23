@@ -143,9 +143,9 @@ def lambda_handler(event, context):
                         del_list.append(snap)
                     else:
                         log.info("info", "Skipping " + sdesc)
-                log.info("info", "- snapshots in " + v_name + " series  : ")
+                log.info("info", "- snapshots in " + v_name + peroid + " series: ")
                 for snap in del_list:
-                    log.info("info", str(snap) + str(snap.start_time))
+                    log.info("info", "- - " + str(snap) + str(snap.start_time))
 
                 def date_compare(snap1):
                     return snap1.start_time
