@@ -53,6 +53,11 @@ class log_data:
         self.count.add()
         print_log(self)
 
+    def info(self, s, d):
+        self.state = s
+        self.data = d
+        print_log(self)
+
     def ending(self, p):
         self.state = "ending"
         self.proc = p
@@ -107,6 +112,8 @@ class log_data:
             output = suc + self.proc + dash + more_data
         elif "sub" in self.state:
             output = subr + self.proc + sp + more_data
+        elif "info" in self.state:
+            output = subr + dash + self.data
         elif "starting" in self.state:
             output = header + self.state + sp + self.proc + tailed
         elif "ending" in self.state:

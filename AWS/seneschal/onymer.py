@@ -4,65 +4,44 @@ import boto3
 import time
 import datetime
 import logged
+import aws_tools
 
 
 # Meta
 vers = "4.3.2"
 program_name = "Onymer"
 desc = "Tags EC2 assests (AMIs/EBSs/IFs/Snaps) based on EC2 Instance name tag"
+
 # Define boto3 connections/variables
-ec2 = boto3.resource("ec2")
+ec2 = aws_tools.aws_resource('ec2')
+
 # Getting the Account ID needed to filter snapshots/AMIs
-my_aws_id = boto3.client('sts').get_caller_identity().get('Account')
+my_aws_id = aws_tools.get_account_id()
 oids = [str(my_aws_id)]
 
 
 # Label applied to anything not named and un-attached
 unattached_label = "- UNATTACHED - "
+
 # Used as a temp variable to identify things without names
 no_name_label = "(no name)"
+
 # Don't touch this unless AWS changes their labeling on marketplace snapshots!
 generic_snapshot = "Created by CreateImage"
 
 
-# Finds the AWS Tag:Name.value in a dict of tags
-def get_tag_name(all_tags):
-    if all_tags is not None:
-        for tags in all_tags:
-            if tags["Key"] == 'Name':
-                name_tag = tags["Value"]
-    else:
-        name_tag = no_name_label
-    return name_tag
-
-
-# get all the instances and their name tags to avoid multiple lookups
-class instance_ids:
-
-    def __init__(self):
-        self.names = {}
-        instances = list(ec2.instances.all())
-        for i in instances:
-            self.names[i.id] = get_tag_name(ec2.Instance(i.id).tags)
-
-    def name(self, id):
-        if id in self.names:
-            return(self.names[id])
-        else:
-            return(False)
-
-
 # Main function
 def lambda_handler(event, context):
-    ec2_instances = instance_ids()
+    ec2_instances = aws_tools.instance_ids()
     if event['logging']:
-        log = logged.log_data(ProgramName, Vers, event['logging'])
+        log = logged.log_data(program_name, vers, event['logging'])
     else:
-        log = logged.log_data(ProgramName, Vers, False)
+        log = logged.log_data(program_name, vers, False)
+
     # EBS renaming process
     log.starting("volume rename")
     for volume in ec2.volumes.all():
-        volume_name = get_tag_name(volume.tags)
+        volume_name = aws_tools.get_tag_name(volume.tags)
         if volume.state == 'in-use':
             instance_id = volume.attachments[0]['InstanceId']
             instance_mount = volume.attachments[0]['Device']
@@ -72,15 +51,15 @@ def lambda_handler(event, context):
             if volume_name != new_volume_name:
                 log.process(
                             "EBS " + volume.id + " renamed",
-                            new_volume_name,
-                            "1"
+                            "1",
+                            new_volume_name
                             )
                 volume.create_tags(Tags=volumes_new_name)
             else:
                 log.process(
                             " EBS " + volume.id + " named correctly",
-                            new_volume_name,
-                            "1"
+                            "1",
+                            new_volume_name
                             )
         if volume.state == 'available':
             new_volume_name = unattached_label + volume_name
@@ -88,15 +67,15 @@ def lambda_handler(event, context):
             if not volume_name.startswith('- UNATTACHED -'):
                 log.process(
                             "unattached EBS " + volume.id + " renamed",
-                            new_volume_name,
-                            "1"
+                            "1",
+                            new_volume_name
                             )
                 volume.create_tags(Tags=volumes_new_name)
             else:
                 log.process(
                             "unattached EBS " + volume.id + " correctly named",
-                            new_volume_name,
-                            "1"
+                            "1",
+                            new_volume_name
                             )
     log.ending("volume rename")
 
@@ -122,8 +101,8 @@ def lambda_handler(event, context):
         interface.create_tags(Tags=interfaces_new_name)
         log.process(
                     " Interface " + interface.id + " labeled ",
-                    interface_new_name,
-                    "1"
+                    "1",
+                    interface_new_name
                     )
     log.ending("interface rename")
 
@@ -136,19 +115,19 @@ def lambda_handler(event, context):
     for snapshot in all_snapshots:
         desc = snapshot.description
         dob = snapshot.start_time.strftime("%m/%d/%y")
-        snap_name = get_tag_name(snapshot.tags)
+        snap_name = aws_tools.get_tag_name(snapshot.tags)
         if snap_name.startswith(no_name_label) or len(snap_name) == 0:
             if snapshot.description.startswith(generic_snapshot):
                 if snapshot.volume_id is not None:
                     try:
                         volume_tags = ec2.Volume(snapshot.volume_id).tags
-                        new_snap_name = get_tag_name(volume_tags)
+                        new_snap_name = aws_tools.get_tag_name(volume_tags)
                         status = "1"
-                        proc = " Labeling SnapID: " + snapshot.id + " as "
+                        proc = "Labeling Snapshot: " + snapshot.id + " as "
                         data = new_snap_name
                     except:
                         status = "0"
-                        proc = "no volume with ID "
+                        proc = "No volume with ID "
                         data = snapshot.volume_id
                         new_snap_name = "Old-" + snapshot.volume_id
                         new_snap_name += "-Snapshot-" + dob
@@ -156,7 +135,7 @@ def lambda_handler(event, context):
                     status = "1"
                     new_snap_name = "CreateImage" + snapshot.volume_id
                     new_snap_name += "-Snapshot-" + dob
-                    proc = "Labeling SnapID: " + snapshot.id + "as  "
+                    proc = "Labeling Snapshot: " + snapshot.id + "as  "
                     data = new_snap_name
             else:
                 status = "1"
@@ -171,7 +150,7 @@ def lambda_handler(event, context):
             proc = "Snapshot: " + snapshot.id + " already tagged as"
             data = snap_name
 
-        log.process(proc, data, status)
+        log.process(proc, status, data)
     log.ending("snapshot labeling")
 
     # AMI labeling process
@@ -183,7 +162,7 @@ def lambda_handler(event, context):
     for image in all_images:
         AMI_name = image.name
         dob = image.creation_date[0:10]
-        image_name = get_tag_name(image.tags)
+        image_name = aws_tools.get_tag_name(image.tags)
         if image_name.startswith(no_name_label) or len(image_name) == 0:
             AMI_name += " " + dob
             proc = "Labeling Image: " + image.id + " with"
@@ -194,7 +173,7 @@ def lambda_handler(event, context):
             proc = "AMI " + image.id + " already has a name"
             data = image_name
 
-        log.process(proc, data, "1")
+        log.process(proc, "1", data)
     log.ending("Labeling owned AMIs")
 
     # End

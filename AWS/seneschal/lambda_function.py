@@ -18,22 +18,26 @@ desc = "AWS Admin Automation Program"
 ##########
 ##########
 
+
+###############################################################################
+# Setup envars with these values after testing
+###############################################################################
 # enable logging output?
 logging_output = True
 downstream_logging = {'logging': logging_output}
 
-
+##############################################################################
 def lambda_handler(event, context):
     #my_account_name = aws_tools.get_account_name()
     #print(my_account_name)
     #my_account = aws_tools.get_account_id()
     #print(my_account)
-    ############################################################################
+    ###########################################################################
     # available autotasks
     # All #
-    ############################################################################
+    ###########################################################################
     #autotasks = ['onymer', 'autoorc', 'effingo']
-    autotasks = ['autoorc']
+    autotasks = ['effingo']
 
     log = logged.log_data(program_name, vers, logging_output)
 

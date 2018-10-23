@@ -22,7 +22,7 @@ def aws_client(resource, region_name=''):
     try:
         obj = boto3.client(resource)
     except:
-        obj = print("Unable to attach to " + resource)
+        obj = print("Unable to attach to " + resource + " as a client")
 
     return(obj)
 
@@ -33,7 +33,7 @@ def aws_resource(resource, region_name=''):
     try:
         obj = boto3.resource(resource)
     except:
-        obj = print("Unable to attach to " + resource)
+        obj = print("Unable to attach to " + resource + "as a resource")
 
     return(obj)
 
@@ -71,6 +71,34 @@ def all_s3_bucket_names():
     return all_bucket_names
 
 
+# Finds the AWS Tag:Name.value in a dict of tags
+def get_tag_name(all_tags):
+    if all_tags is not None:
+        for tags in all_tags:
+            if tags["Key"] == 'Name':
+                name_tag = tags["Value"]
+    else:
+        name_tag = no_name_label
+    return name_tag
+
+
+# get all the instances and their name tags to avoid multiple lookups
+class instance_ids:
+
+    def __init__(self):
+        api_call = aws_resource('ec2')
+        self.names = {}
+        instances = list(api_call.instances.all())
+        for i in instances:
+            self.names[i.id] = get_tag_name(api_call.Instance(i.id).tags)
+
+    def name(self, id):
+        if id in self.names:
+            return(self.names[id])
+        else:
+            return(False)
+
+
 # get the name tag of an instance
 def get_ec2_instance_name(id, region=''):
     instance_name = ''
@@ -87,11 +115,12 @@ def get_ec2_instance_name(id, region=''):
 
 
 # send out SNS message to a given topic, provided the message/sub
-def send_sns(event):
+def send_sns(content):
+    # TODO : check if SNS topic exists?
     sns_client = aws_client('sns')
-    sns_arn = event['sns_arn']
-    sns_message = event['sns_message']
-    sns_subject = event['sns_subject']
+    sns_arn = content['sns_arn']
+    sns_message = content['sns_message']
+    sns_subject = content['sns_subject']
     sns_client.publish(
                         TopicArn=sns_arn,
                         Message=sns_message,
