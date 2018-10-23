@@ -22,7 +22,7 @@ def aws_client(resource, region_name=''):
     try:
         obj = boto3.client(resource)
     except:
-        obj = print("Unable to attach to " + resource + " as a client")
+        obj = print("Unable to attach to " + resource + " as a client" + sys.exc_info()[0])
 
     return(obj)
 
@@ -33,7 +33,7 @@ def aws_resource(resource, region_name=''):
     try:
         obj = boto3.resource(resource)
     except:
-        obj = print("Unable to attach to " + resource + "as a resource")
+        obj = print("Unable to attach to " + resource + "as a resource" + sys.exc_info()[0])
 
     return(obj)
 
@@ -73,6 +73,7 @@ def all_s3_bucket_names():
 
 # Finds the AWS Tag:Name.value in a dict of tags
 def get_tag_name(all_tags):
+    no_name_label = "(no name)"
     if all_tags is not None:
         for tags in all_tags:
             if tags["Key"] == 'Name':

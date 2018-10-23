@@ -71,7 +71,7 @@ def lambda_handler(event, context):
             if resource.tags is None:
                 resource.create_tags(Tags=[{'Key': k, 'Value': v}])
 
-            elif tag_key not in resource.tags or resource.tags[k] != v:
+            elif k not in resource.tags or resource.tags[k] != v:
                 resource.create_tags(Tags=[{'Key': k, 'Value': v}])
 
     # Only run 'WeeklySnapshot' on day 5 - Saturday
@@ -105,73 +105,74 @@ def lambda_handler(event, context):
         for vol in vols:
             v_name = aws_tools.get_tag_name(vol.tags)
             log.subroutine(" EBS Volume: " + v_name + " snapping...")
-            #try:
-            count_total += 1
-            tags_volume = get_resource_tags(vol)
-
-            description = str(period) + '_snapshot ' + str(vol.id)
-            description += '_' + str(period) + '_' + str(date_suffix)
-            description += ' by Lambda ' + program_name + ' script at '
-            description += str(today.strftime('%d-%m-%Y %H:%M:%S'))
             try:
-                current_snap = vol.create_snapshot(Description=description)
-                set_resource_tags(current_snap, tags_volume)
+                count_total += 1
+                tags_volume = get_resource_tags(vol)
 
-                success_msg = "Snapshot created with description: "
-                success_msg += str(description) + " and tags: "
-                success_msg += str(tags_volume)
+                description = str(period) + '_snapshot ' + str(vol.id)
+                description += '_' + str(period) + '_' + str(date_suffix)
+                description += ' by Lambda ' + program_name + ' script at '
+                description += str(today.strftime('%d-%m-%Y %H:%M:%S'))
+                try:
+                    current_snap = vol.create_snapshot(Description=description)
+                    set_resource_tags(current_snap, tags_volume)
 
-                log.info("1", success_msg)
-                t_created += 1
+                    success_msg = "Snapshot created with description: "
+                    success_msg += str(description) + " and tags: "
+                    success_msg += str(tags_volume)
 
+                    log.info("1", success_msg)
+                    t_created += 1
+
+                except Exception:
+                    log.info("0", sys.exc_info()[0])
+                    pass
+
+                # Collect and sort all snapshots to remove the old ones
+                log.info("info", "> Removing old snapshots for " + v_name + ":")
+                snapshots = vol.snapshots.all()
+                del_list = []
+
+                for snap in snapshots:
+                    sdesc = str(snap.description)
+                    if (sdesc.startswith('week_snapshot') and period == 'week'):
+                        del_list.append(snap)
+                    elif (sdesc.startswith('day_snapshot') and period == 'day'):
+                        del_list.append(snap)
+                    elif (sdesc.startswith('month_snapshot') and period == 'month'):
+                        del_list.append(snap)
+                    else:
+                        log.info("info", "Skipping " + sdesc)
+                log.info("info", "- snapshots in " + v_name + " series  : ")
+                for snap in del_list:
+                    log.info("info", str(snap) + str(snap.start_time))
+
+                def date_compare(snap1):
+                    return snap1.start_time
+
+                del_list.sort(key=date_compare)
+
+                if period == 'day':
+                    keep = keep_day
+                elif period == 'week':
+                    keep = keep_week
+                elif period == 'month':
+                    keep = keep_month
+                delta = len(del_list) - keep
+                for i in range(delta):
+                    del_message = ' Deleting snapshot '
+                    del_message += str(del_list[i].description)
+                    log.info("info", del_message)
+                    del_list[i].delete()
+                    t_deleted += 1
+                time.sleep(4)
             except Exception:
-                log.info("0", sys.exc_info()[0])
-                pass
-
-            # Collect and sort all snapshots to remove the old ones
-            log.info("info", "Removing old snapshots for volume " + v_name)
-            snapshots = vol.snapshots.all()
-            del_list = []
-
-            for snap in snapshots:
-                sdesc = str(snap.description)
-                if (sdesc.startswith('week_snapshot') and period == 'week'):
-                    del_list.append(snap)
-                elif (sdesc.startswith('day_snapshot') and period == 'day'):
-                    del_list.append(snap)
-                elif (sdesc.startswith('month_snapshot') and period == 'month'):
-                    del_list.append(snap)
-                else:
-                    log.info("info", "Skipping " + sdesc)
-            for snap in del_list:
-                log.info("info", str(snap) + str(snap.start_time))
-
-            def date_compare(snap1):
-                return snap1.start_time
-
-            del_list.sort(key=date_compare)
-
-            if period == 'day':
-                keep = keep_day
-            elif period == 'week':
-                keep = keep_week
-            elif period == 'month':
-                keep = keep_month
-            delta = len(del_list) - keep
-            for i in range(delta):
-                del_message = ' Deleting snapshot '
-                del_message += str(del_list[i].description)
-                log.info("info", del_message)
-                del_list[i].delete()
-                t_deleted += 1
-            time.sleep(4)
-            #except Exception:
-            #    error_details = 'Error in processing volume id: ' + vol.id + "\n"
-            #    log.info("0", error_details)
-            #    errmsg += error_details
-            #    count_err += 1
-            #else:
-            count_success += 1
+                error_details = 'Error in processing volume id: ' + vol.id + "\n"
+                log.info("0", error_details)
+                errmsg += error_details
+                count_err += 1
+            else:
+                count_success += 1
 
     log.ending(process_message)
 
@@ -185,7 +186,6 @@ def lambda_handler(event, context):
     message += "\nTotal snapshots created: " + str(t_created)
     message += "\nTotal snapshots errors: " + str(count_err)
     message += "\nTotal snapshots deleted: " + str(t_deleted) + "\n"
-
 
     if sns_arn:
         if errmsg:
