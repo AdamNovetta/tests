@@ -21,8 +21,8 @@ def aws_client(resource, region_name=''):
 
     try:
         obj = boto3.client(resource)
-    except:
-        obj = print("Unable to attach to " + resource + " as a client" + sys.exc_info()[0])
+    except ClientError:
+        obj = print("Unable to attach to " + resource + sys.exc_info()[0])
 
     return(obj)
 
@@ -32,8 +32,8 @@ def aws_resource(resource, region_name=''):
 
     try:
         obj = boto3.resource(resource)
-    except:
-        obj = print("Unable to attach to " + resource + "as a resource" + sys.exc_info()[0])
+    except ClientError:
+        obj = print("Unable to attach to " + resource + sys.exc_info()[0])
 
     return(obj)
 
@@ -117,17 +117,21 @@ def get_ec2_instance_name(id, region=''):
 
 # send out SNS message to a given topic, provided the message/sub
 def send_sns(content):
-    # TODO : check if SNS topic exists?
+    # TODO : check if SNS topic exists / clean this up
     sns_client = aws_client('sns')
+    sns = aws_resource('sns')
     sns_arn = content['sns_arn']
     sns_message = content['sns_message']
     sns_subject = content['sns_subject']
-    sns_client.publish(
+    try:
+        sns.Topic(arn).load
+        sns_client.publish(
                         TopicArn=sns_arn,
                         Message=sns_message,
                         Subject=sns_subject
                     )
-
+    except:
+        print("can't load : " + sns.Topic(arn).load " \n or possibly publish to it")
 
 # Create cloudwatch metrics for instance start/stop/failure
 def put_cloudwatch_metric(namespace, metricName, value, process, outcome):
