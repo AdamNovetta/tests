@@ -23,11 +23,13 @@ ec2_client = aws_tools.aws_client('ec2')
 # Main function of the script
 def lambda_handler(event, context):
 
+    # logging
     if event['logging']:
         log = logged.log_data(program_name, vers, event['logging'])
     else:
         log = logged.log_data(program_name, vers, False)
 
+    # identifier variables - TODO: remove static region/topic_name,sns_arn - move to main Lambda_function
     aws_id = aws_tools.get_account_id()
     account_name = aws_tools.get_account_name()
     region_name = "us-east-1"
@@ -37,18 +39,23 @@ def lambda_handler(event, context):
     v_tags = ['DailySnapshot', 'WeeklySnapshot', 'MonthlySnapshot']
     message = errmsg = ""
     t_created = t_deleted = count_err = count_success = count_total = 0
+
     # Number of days to keep snapshot types
     keep_week = 3
     keep_day = 5
     keep_month = 2
+
+    # date variables
     today = datetime.today()
     day = today.strftime('%-d')
     month = today.strftime('%-m')
     now = datetime.weekday(today)
     days_in_month = calendar.mdays[int(month)]
+
+    # tasks will be the type of snapshot created, based on EBS's tags
     tasks = v_tags
 
-    # Get the tags of a resource
+    # Get the tags of a resource, excluding AWS system tags and tags for backup
     def get_resource_tags(resources):
         resource_ID = resources.id
         resource_tags = {}
@@ -65,7 +72,7 @@ def lambda_handler(event, context):
                     resource_tags[key] = value
         return(resource_tags)
 
-    # Set the tags of the resource from the tags passed to the func
+    # Set the tags of the resource from the tags passed
     def set_resource_tags(resource, tags):
         for k, v in tags.items():
             if resource.tags is None:
@@ -74,7 +81,7 @@ def lambda_handler(event, context):
             elif k not in resource.tags or resource.tags[k] != v:
                 resource.create_tags(Tags=[{'Key': k, 'Value': v}])
 
-    # Only run 'WeeklySnapshot' on day 5 - Saturday
+    # Only run 'WeeklySnapshot' on day 5 (Saturday)
     if 5 != now:
         tasks.remove('WeeklySnapshot')
 
@@ -100,7 +107,8 @@ def lambda_handler(event, context):
         vols = ec2.volumes.filter(Filters=[{
                                             'Name': 'tag:' + tag_type,
                                             'Values': ["True"]
-                                            }])
+                                        }])
+
         # cycle volumes and snapshot them, delete their old copies
         for vol in vols:
             v_name = aws_tools.get_tag_name(vol.tags)
@@ -108,7 +116,6 @@ def lambda_handler(event, context):
             try:
                 count_total += 1
                 tags_volume = get_resource_tags(vol)
-
                 description = str(period) + '_snapshot ' + str(vol.id)
                 description += '_' + str(period) + '_' + str(date_suffix)
                 description += ' by Lambda ' + program_name + ' script at '
@@ -116,14 +123,11 @@ def lambda_handler(event, context):
                 try:
                     current_snap = vol.create_snapshot(Description=description)
                     set_resource_tags(current_snap, tags_volume)
-
                     success_msg = "Snapshot created with description: "
                     success_msg += str(description) + " and tags: "
                     success_msg += str(tags_volume)
-
                     log.info("1", success_msg)
                     t_created += 1
-
                 except Exception:
                     log.info("0", sys.exc_info()[0])
                     pass
@@ -189,6 +193,7 @@ def lambda_handler(event, context):
     message += "\nTotal snapshots errors: " + str(count_err)
     message += "\nTotal snapshots deleted: " + str(t_deleted) + "\n"
 
+    # send emails for snapshot completion or errors
     if sns_arn:
         if errmsg:
             err_sns_subj = account_name + ' - Error with AWS Snapshots'
@@ -200,9 +205,9 @@ def lambda_handler(event, context):
                             })
         sns_subj = account_name + ' - Finished AWS snapshotting'
         aws_tools.send_sns({
-                        'sns_arn': sns_arn,
-                        'sns_message': message,
-                        'sns_subject': sns_subj
-                    })
+                            'sns_arn': sns_arn,
+                            'sns_message': message,
+                            'sns_subject': sns_subj
+                        })
     log.info("info", result)
     log.finished()
