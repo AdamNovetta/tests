@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-import boto3
 import calendar
-import json
 import time
 import sys
 import logged
@@ -10,18 +8,17 @@ from datetime import datetime
 
 
 # program meta
-vers = "1.3"
+vers = "1.4"
 program_name = "Effingo"
 desc = "Takes Daily/Weekly/Monthly snapshots of EBS volumes"
 
 
-# boto3 connections/variables
-ec2 = aws_tools.aws_resource('ec2')
-ec2_client = aws_tools.aws_client('ec2')
+# Main function of program
+def main(event):
 
-
-# Main function of the script
-def lambda_handler(event, context):
+    # boto3 connections/variables
+    ec2 = aws_tools.aws_resource('ec2')
+    ec2_client = aws_tools.aws_client('ec2')
 
     # logging
     if event['logging']:
@@ -29,18 +26,21 @@ def lambda_handler(event, context):
     else:
         log = logged.log_data(program_name, vers, False)
 
-    # identifier variables - TODO: remove static region/topic_name,sns_arn - move to main Lambda_function
-    aws_id = aws_tools.get_account_id()
-    account_name = aws_tools.get_account_name()
-    region_name = "us-east-1"
-    topic_name = "auto-snapshots"
-    sns_arn = "arn:aws:sns:" + region_name + ":" + aws_id + ":" + topic_name
-    del_list = []
+    # acccount and SNS topcic variables
+    if event['sns_topic'] and event['account_info']:
+        topic_name = event['sns_topic']
+        region = event['account_info']['region_name']
+        aws_id = event['account_info']['id']
+        account_name = event['account_info']['name']
+        sns_arn = "arn:aws:sns:" + region + ":" + aws_id + ":" + topic_name
+
+    # volume tag and other counter variables
     v_tags = ['DailySnapshot', 'WeeklySnapshot', 'MonthlySnapshot']
     message = errmsg = ""
+    del_list = []
     t_created = t_deleted = count_err = count_success = count_total = 0
 
-    # Number of days to keep snapshot types
+    # Number of snapshot types to keep
     keep_week = 3
     keep_day = 5
     keep_month = 2
@@ -133,12 +133,15 @@ def lambda_handler(event, context):
                     pass
 
                 # Collect and sort all snapshots to remove the old ones
-                log.info("info", "> Removing old snapshots for " + v_name + ":")
+                log.info("info", "> Removing " + v_name + "'s old snapshots':")
                 snapshots = vol.snapshots.all()
                 del_list = []
 
+                # build list of old snapshots to be deleted
                 for snap in snapshots:
                     sdesc = str(snap.description)
+                    sid = snap.id
+                    stime = snap.start_time
                     if (sdesc.startswith('week_snapshot') and period == 'week'):
                         del_list.append(snap)
                     elif (sdesc.startswith('day_snapshot') and period == 'day'):
@@ -147,9 +150,11 @@ def lambda_handler(event, context):
                         del_list.append(snap)
                     else:
                         log.info("info", "Skipping " + sdesc)
-                log.info("info", "- snapshot " + v_name + period + " series: ")
+
+                # log series of snapshots to be deleted
+                log.info("info", "- snapshot " + v_name + " " + period + " series: ")
                 for snap in del_list:
-                    log.info("info", "- - " + str(snap) + str(snap.start_time))
+                    log.info("info", "- - " + str(sid) + str(stime))
 
                 def date_compare(snap1):
                     return snap1.start_time
@@ -162,15 +167,20 @@ def lambda_handler(event, context):
                     keep = keep_week
                 elif period == 'month':
                     keep = keep_month
+
                 delta = len(del_list) - keep
+
+                # delete old snapshots
                 for i in range(delta):
                     del_message = ' Deleting snapshot '
                     del_message += str(del_list[i].description)
                     log.info("info", del_message)
                     del_list[i].delete()
                     t_deleted += 1
+
                 time.sleep(4)
 
+            # problem creating or deleting snapshots
             except Exception:
                 error_details = 'Error processing volume id: ' + vol.id + "\n"
                 log.info("0", error_details)

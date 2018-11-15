@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import json
-import boto3
 import time
 import datetime
 import logged
@@ -12,26 +11,24 @@ vers = "4.3.2"
 program_name = "Onymer"
 desc = "Tags EC2 assests (AMIs/EBSs/IFs/Snaps) based on EC2 Instance name tag"
 
-# Define boto3 connections/variables
-ec2 = aws_tools.aws_resource('ec2')
-
-# Getting the Account ID needed to filter snapshots/AMIs
-my_aws_id = aws_tools.get_account_id()
-oids = [str(my_aws_id)]
-
-
-# Label applied to anything not named and un-attached
-unattached_label = "- UNATTACHED - "
-
-# Used as a temp variable to identify things without names
-no_name_label = "(no name)"
-
-# Don't touch this unless AWS changes their labeling on marketplace snapshots!
-generic_snapshot = "Created by CreateImage"
-
 
 # Main function
-def lambda_handler(event, context):
+def main(event):
+    # Define boto3 connections/variables
+    ec2 = aws_tools.aws_resource('ec2')
+
+    # Getting the Account ID needed to filter snapshots/AMIs
+    my_aws_id = event['account_info']['id']
+    oids = [str(my_aws_id)]
+
+    # Label applied to anything not named and un-attached
+    unattached_label = "- UNATTACHED - "
+
+    # Used as a temp variable to identify things without names
+    no_name_label = "(no name)"
+
+    # Don't touch this unless AWS changes labeling on marketplace snapshots!
+    generic_snapshot = "Created by CreateImage"
     ec2_instances = aws_tools.instance_ids()
     if event['logging']:
         log = logged.log_data(program_name, vers, event['logging'])
@@ -93,7 +90,7 @@ def lambda_handler(event, context):
             else:
                 try:
                     interface_new_name = Interface['Description']
-                except:
+                except Exception:
                     interface_new_name = "non-ec2-network-interface"
         if interface.status == "available":
             interface_new_name = unattached_label
@@ -125,7 +122,7 @@ def lambda_handler(event, context):
                         status = "1"
                         proc = "Labeling Snapshot: " + snapshot.id + " as "
                         data = new_snap_name
-                    except:
+                    except Exception:
                         status = "0"
                         proc = "No volume with ID "
                         data = snapshot.volume_id

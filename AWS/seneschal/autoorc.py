@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-# no boto3 except in aws_tools now!
-# import boto3
-
-import logging
 import logged
 import time
 import datetime
@@ -13,35 +9,34 @@ vers = "1.0"
 program_name = "AutoOrc"
 desc = "Auto-starts and Auto-stops EC2 & RDS instances based on tags"
 
-# AWS Tags to target for starting and stopping
-start = "autoOrc-up"
-stop = "autoOrc-down"
-
-# Start instances only on weekdays? (change to False to start every day)
-weekdays = True
-
-# Define boto3 connections/variables
-rds = aws_tools.aws_client('rds')
-ec2 = aws_tools.aws_resource('ec2')
-
-# cloudwatch names-space to use for metrics
-cw_ns = 'ORC-Results'
-
-
-# Get AutoOrc-down / AutoOrc-up tags on RDS instances
-def get_rds_orc_tags(ARN, phase):
-    orc_timer = ''
-    tags = rds.list_tags_for_resource(ResourceName=ARN)
-
-    for tag in tags['TagList']:
-        if tag['Key'] == phase:
-            orc_timer = tag['Value']
-
-    return orc_timer
-
 
 # Main function that lambda calls
-def lambda_handler(event, context):
+def main(event):
+
+    # AWS Tags to target for starting and stopping
+    start = "autoOrc-up"
+    stop = "autoOrc-down"
+
+    # Start instances only on weekdays? (change to False to start every day)
+    weekdays = True
+
+    # Define boto3 connections/variables
+    rds = aws_tools.aws_client('rds')
+    ec2 = aws_tools.aws_resource('ec2')
+
+    # cloudwatch names-space to use for metrics
+    cw_ns = 'ORC-Results'
+
+    # Get AutoOrc-down / AutoOrc-up tags on RDS instances
+    def get_rds_orc_tags(arn, phase):
+        orc_timer = ''
+        tags = rds.list_tags_for_resource(ResourceName=arn)
+
+        for tag in tags['TagList']:
+            if tag['Key'] == phase:
+                orc_timer = tag['Value']
+
+        return orc_timer
 
     if event['logging']:
         log = logged.log_data(program_name, vers, event['logging'])
@@ -50,7 +45,7 @@ def lambda_handler(event, context):
 
     start_tag = "tag:" + start
     stop_tag = "tag:" + stop
-    aws_id = aws_tools.get_account_id()
+    aws_id = event['account_info']['id']
 
     # Day of the week
     d = datetime.datetime.now()

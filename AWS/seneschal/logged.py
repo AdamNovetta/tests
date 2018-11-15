@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import json
-import boto3
 import logging
 import time
 import datetime

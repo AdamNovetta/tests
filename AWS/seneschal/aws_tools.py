@@ -10,12 +10,6 @@ import logged
 # - aws_resource
 
 
-#  old connections
-# ec2_client = boto3.client('ec2')
-# iam_client = boto3.client('iam')
-# s3_client = boto3.client('s3')
-
-
 # connect to aws client
 def aws_client(resource, region_name=''):
 
@@ -36,6 +30,14 @@ def aws_resource(resource, region_name=''):
         obj = print("Unable to attach to " + resource + sys.exc_info()[0])
 
     return(obj)
+
+
+# get session variables
+def get_current_region():
+    session = boto3.session.Session()
+    current_region = session.region_name
+
+    return(current_region)
 
 
 # get AWS account alias(s)/name(s)
@@ -124,27 +126,28 @@ def send_sns(content):
     sns_message = content['sns_message']
     sns_subject = content['sns_subject']
     try:
-        sns.Topic(arn).load
+        sns.Topic(sns_arn).load
         sns_client.publish(
                         TopicArn=sns_arn,
                         Message=sns_message,
                         Subject=sns_subject
                     )
-    except:
-        print("can't load : " + sns.Topic(arn).load " \n or possibly publish to it")
+    except Exception:
+        print("can't load\push-to SNS : " + sns_arn + " \n ")
+
 
 # Create cloudwatch metrics for instance start/stop/failure
 def put_cloudwatch_metric(namespace, metricName, value, process, outcome):
     cw = aws_client('cloudwatch')
     cw.put_metric_data(
-        Namespace=namespace,
-        MetricData=[{
-            'MetricName': metricName,
-            'Value': value,
-            'Unit': 'Count',
-            'Dimensions': [
-                {'Name': 'Process', 'Value': process},
-                {'Name': 'Outcome', 'Value': outcome}
-            ]
-        }]
-    )
+                        Namespace=namespace,
+                        MetricData=[{
+                            'MetricName': metricName,
+                            'Value': value,
+                            'Unit': 'Count',
+                            'Dimensions': [
+                                {'Name': 'Process', 'Value': process},
+                                {'Name': 'Outcome', 'Value': outcome}
+                            ]
+                        }]
+                    )
