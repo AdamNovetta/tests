@@ -20,8 +20,10 @@ region_name = aws_tools.get_current_region()
 downstream_logging = {'logging': logging_output}
 sns_topic_name = {'sns_topic': topic}
 account = {'account_info': {
-                'name': account_name, 'id': aws_id, 'region_name': region_name
-                }}
+                            'name': account_name,
+                            'id': aws_id,
+                            'region_name': region_name
+                        }}
 
 pass_event = {**downstream_logging, **sns_topic_name, **account}
 
@@ -39,7 +41,7 @@ def lambda_handler(event, context):
             name = routine.program_name
             ver = routine.vers
             routine.main(pass_event)
-            log.subroutine(" [ Sub-routine " + name + " " + ver, "finished ]")
+            log.subroutine(" [[ Subroutine " + name + " " + ver, "finished ]]")
 
     log.starting("autotasks")
     for item in autotasks:
