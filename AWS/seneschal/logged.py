@@ -21,7 +21,7 @@ class counter:
 # logging output class
 class log_data:
 
-    # create blank logging-item object with counter
+    # init blank logging-item object with counter
     def __init__(self, program_name, version, enable_logging):
         self.state = "starting"
         self.proc = ''
@@ -102,6 +102,7 @@ class log_data:
         endend = " run _____ <>" + rb
 
         #############################
+        # outputs. based on 'state' #
         #############################
 
         if "0" in self.state:

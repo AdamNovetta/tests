@@ -6,17 +6,21 @@ import autoorc
 import effingo
 import aws_tools
 
+# meta
 vers = "1.0"
 program_name = "Seneschal"
 desc = "AWS Admin Automation Program"
 
+# Get environment variables for the SNS topic and if logging should be enabled
 topic = os.environ['sns_topic']
 logging_output = os.environ['logging_enabled']
 
+# aws account info
 aws_id = aws_tools.get_account_id()
 account_name = aws_tools.get_account_name()
 region_name = aws_tools.get_current_region()
 
+# pass above info to child programs
 downstream_logging = {'logging': logging_output}
 sns_topic_name = {'sns_topic': topic}
 account = {'account_info': {
@@ -26,6 +30,7 @@ account = {'account_info': {
 pass_event = {**downstream_logging, **sns_topic_name, **account}
 
 
+# main
 def lambda_handler(event, context):
 
     # available autotasks

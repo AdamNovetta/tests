@@ -1,0 +1,10 @@
+# Run all programs
+{
+  "Tasks": [
+    "onymer",
+    "autoorc",
+    "effingo"
+  ]
+}
+
+# Run ____ targeted to _____ 

@@ -32,7 +32,7 @@ def aws_resource(resource, region_name=''):
     return(obj)
 
 
-# get session variables
+# get session variables - region
 def get_current_region():
     session = boto3.session.Session()
     current_region = session.region_name
